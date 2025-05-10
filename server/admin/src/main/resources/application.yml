@@ -1,0 +1,32 @@
+#服务端口
+server:
+  port: 10082
+# 应用名称
+spring:
+  application:
+    name: admin
+  # nacos
+  cloud:
+    nacos:
+      discovery:
+        server-addr: www.cookframe.com:8848
+        # 标识
+        metadata:
+          mark: true
+  security:
+    user:
+      name: admin
+      password: admin    
+#dingtalk:
+#  token: a
+  main:
+    allow-bean-definition-overriding: true
+management:
+  endpoints:
+    web:
+      exposure:
+        include: '*'
+    health:
+      show-details: always
+  security:
+    enabled: false

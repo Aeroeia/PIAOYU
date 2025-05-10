@@ -1,0 +1,16 @@
+package com.example.dto;
+
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
+import lombok.Data;
+
+import javax.validation.constraints.NotNull;
+
+@Data
+@ApiModel(value="GetLockDataDto", description ="分布式锁测试数据")
+public class GetLockDataDto {
+    
+    @ApiModelProperty(name ="id", dataType ="Long", value ="id", required =true)
+    @NotNull
+    private Long id;
+}

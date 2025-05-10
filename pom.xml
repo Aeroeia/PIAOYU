@@ -1,51 +1,90 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one or more
+  ~ contributor license agreements.  See the NOTICE file distributed with
+  ~ this work for additional information regarding copyright ownership.
+  ~ The ASF licenses this file to You under the Apache License, Version 2.0
+  ~ (the "License"); you may not use this file except in compliance with
+  ~ the License.  You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  ~
+  -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
 	<groupId>com.example</groupId>
-	<artifactId>toolkit</artifactId>
+	<artifactId>cook-frame</artifactId>
 	<version>${revision}</version>
 	<packaging>pom</packaging>
 
 	<name>${project.artifactId}</name>
-	<description>工具组件</description>
+	<description>微服务高度定制化</description>
 
 	<modules>
-		<module>threadpool</module>
-		<module>tool</module>
-		<module>distribute-cache</module>
+		<module>common</module>
+		<module>redis-tool</module>
+		<module>distribute-es-tool</module>
+		<module>id-generator-tool</module>
+		<module>spring-cloud-extra</module>
+		<module>thread-pool</module>
+		<module>service-lock-framework</module>
+		<module>arithmetic</module>
+		<module>server</module>
+		<module>server-client</module>
+		<module>api-stat</module>
 	</modules>
 
 	<properties>
 		<revision>0.0.1-SNAPSHOT</revision>
 		<java.version>1.8</java.version>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<spring-boot.version>2.3.12.RELEASE</spring-boot.version>
+		<spring-cloud.version>Hoxton.SR12</spring-cloud.version>
+		<spring-cloud-alibaba.version>2.2.7.RELEASE</spring-cloud-alibaba.version>
+		<fastjson.version>1.2.83</fastjson.version>
+		<oshi-core.version>6.2.2</oshi-core.version>
+		<maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version>
+		<jdk.version>1.8</jdk.version>
+		<nacos.version>2.0.3</nacos.version>
+		<jasypt.version>3.0.5</jasypt.version>
+		<maven-compiler.version>3.8.1</maven-compiler.version>
+		<maven-source.version>3.2.1</maven-source.version>
+		<flatten-maven.version>1.4.1</flatten-maven.version>
+		<fastjson.version>2.0.9</fastjson.version>
+		<oshi-core.version>6.2.2</oshi-core.version>
+		<commons-lang.version>2.6</commons-lang.version>
+		<jjwt.version>0.9.1</jjwt.version>
+		<hutool.version>5.8.16</hutool.version>
+		<log4j.version>2.17.0</log4j.version>
+		<pagehelper.version>5.2.0</pagehelper.version>
+		<commons-collections.version>3.2.2</commons-collections.version>
+		<spring-boot-admin-starter-server.version>2.3.0</spring-boot-admin-starter-server.version>
+		<mybatis-plus.version>3.5.3.2</mybatis-plus.version>
+		<mybatis-plus-generator.version>3.5.3.2</mybatis-plus-generator.version>
+		<freemarker.version>2.3.29</freemarker.version>
+		<druid.version>1.1.10</druid.version>
+		<spring-boot-admin-starter-client.version>2.3.1</spring-boot-admin-starter-client.version>
+		<springfox-swagger2.version>2.9.2</springfox-swagger2.version>
+		<knife4j.version>2.0.9</knife4j.version>
+		<swagger.version>1.5.22</swagger.version>
+		<redisson.version>3.16.1</redisson.version>
+		<qps-helper.version>1.1.3-RELEASE</qps-helper.version>
 	</properties>
 	<dependencies>
 		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-web</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-test</artifactId>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-jdbc</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>mysql</groupId>
-			<artifactId>mysql-connector-java</artifactId>
-			<version>6.0.6</version>
+			<groupId>org.projectlombok</groupId>
+			<artifactId>lombok</artifactId>
 		</dependency>
 	</dependencies>
-
 	<dependencyManagement>
 		<dependencies>
 			<dependency>
@@ -55,36 +94,79 @@
 				<type>pom</type>
 				<scope>import</scope>
 			</dependency>
+			<dependency>
+				<groupId>org.springframework.cloud</groupId>
+				<artifactId>spring-cloud-dependencies</artifactId>
+				<version>${spring-cloud.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+			<dependency>
+				<groupId>com.alibaba.cloud</groupId>
+				<artifactId>spring-cloud-alibaba-dependencies</artifactId>
+				<version>${spring-cloud-alibaba.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
 		</dependencies>
-
 	</dependencyManagement>
 
 	<build>
 		<plugins>
 			<plugin>
-				<groupId>org.springframework.boot</groupId>
-				<artifactId>spring-boot-maven-plugin</artifactId>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>${maven-compiler.version}</version>
+				<configuration>
+					<encoding>${project.build.sourceEncoding}</encoding>
+					<source>${java.version}</source>
+					<target>${java.version}</target>
+					<encoding>${project.build.sourceEncoding}</encoding>
+				</configuration>
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-compiler-plugin</artifactId>
+				<artifactId>maven-source-plugin</artifactId>
+				<version>${maven-source.version}</version>
 				<configuration>
-					<source>8</source>
-					<target>8</target>
+					<!--install、deploy时会上传源码jar包到仓库，默认是true-->
+					<attach>true</attach>
 				</configuration>
+				<executions>
+					<execution>
+						<id>attach-source</id>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>flatten-maven-plugin</artifactId>
+				<version>${flatten-maven.version}</version>
+				<configuration>
+					<updatePomFile>true</updatePomFile>
+				</configuration>
+				<executions>
+					<!-- enable flattening -->
+					<execution>
+						<id>flatten</id>
+						<phase>process-resources</phase>
+						<goals>
+							<goal>flatten</goal>
+						</goals>
+					</execution>
+					<!-- ensure proper cleanup -->
+					<execution>
+						<id>flatten.clean</id>
+						<phase>clean</phase>
+						<goals>
+							<goal>clean</goal>
+						</goals>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
-		<resources>
-			<resource>
-				<directory>src/main/java</directory>
-				<includes>
-					<include>**/*.xml</include>
-				</includes>
-			</resource>
-			<resource>
-				<directory>src/main/resources</directory>
-			</resource>
-		</resources>
 	</build>
-
 </project>
