@@ -10,7 +10,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 @ConditionalOnProperty("spring.redis.host")
-public class RedisToolConfig {
+public class RedisToolAutoConfig {
 
     @Bean("redisToolRedisTemplate")
     public RedisTemplate redisTemplate(RedisConnectionFactory redisConnectionFactory) {
