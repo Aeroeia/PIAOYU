@@ -1,7 +1,9 @@
 package com.example.enums;
 
 public enum CompositeCheckType {
-    USER_REGISTER_CHECK(1,"","用户注册"),
+    USER_REGISTER_CHECK(1,"user_register_check","用户注册"),
+    
+    PROGRAM_ORDER_CREATE_CHECK(2,"program_order_create_check","订单创建"),
     ;
 
     private Integer code;
