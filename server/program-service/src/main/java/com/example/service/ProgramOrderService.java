@@ -8,6 +8,7 @@ import com.baidu.fsg.uid.UidGenerator;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.example.client.OrderClient;
 import com.example.client.UserClient;
 import com.example.common.ApiResponse;
 import com.example.composite.CompositeContainer;
@@ -63,6 +64,9 @@ public class ProgramOrderService {
     
     @Autowired
     private UserClient userClient;
+    
+    @Autowired
+    private OrderClient orderClient;
     
     @Autowired
     private UidGenerator uidGenerator;
@@ -248,7 +252,7 @@ public class ProgramOrderService {
     
     
     
-    public void createV2(final ProgramOrderCreateDto programOrderCreateDto) {
+    public String createV2(final ProgramOrderCreateDto programOrderCreateDto) {
         compositeContainer.execute(CompositeCheckType.PROGRAM_ORDER_CREATE_CHECK.getValue(),programOrderCreateDto);
         
         //传入的座位总价格
@@ -268,7 +272,6 @@ public class ProgramOrderService {
         //入参座位存在
         if (CollectionUtil.isNotEmpty(seatDtoList)) {
             //余票数量检测
-            
             Map<Long, Long> seatTicketCategoryDtoCount = seatDtoList.stream()
                     .collect(Collectors.groupingBy(SeatDto::getTicketCategoryId, Collectors.counting()));
             for (final Entry<Long, Long> entry : seatTicketCategoryDtoCount.entrySet()) {
@@ -355,7 +358,7 @@ public class ProgramOrderService {
         programCacheOperate.programCacheOperate(keys,data);
         
         if (1 ==1 ) {
-            return;
+            return null;
         }
 //        //构建锁座位条件
 //        Seat updateSeat = new Seat();
@@ -410,5 +413,11 @@ public class ProgramOrderService {
         
         orderCreateDto.setOrderTicketUserCreateDtoList(orderTicketUserCreateDtoList);
         
+        ApiResponse<String> createOrderResponse = orderClient.create(orderCreateDto);
+        if (Objects.equals(createOrderResponse.getCode(), BaseCode.SUCCESS.getCode())) {
+            return createOrderResponse.getData();
+        }else {
+            throw new CookFrameException(createOrderResponse);
+        }
     }
 }
