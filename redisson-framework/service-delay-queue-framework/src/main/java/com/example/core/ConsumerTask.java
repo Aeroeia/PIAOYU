@@ -1,4 +1,4 @@
-package com.example.delayqueuenew.core;
+package com.example.core;
 
 public interface ConsumerTask {
     
