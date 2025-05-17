@@ -39,7 +39,7 @@ public class DepthRuleService {
     @Resource
     private UidGenerator uidGenerator;
     
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void depthRuleAdd(DepthRuleDto depthRuleDto) {
         check(depthRuleDto.getStartTimeWindow(),depthRuleDto.getEndTimeWindow());
         add(depthRuleDto);
@@ -70,7 +70,7 @@ public class DepthRuleService {
         return DateUtil.parse(today + " " + timeWindow).getTime();
     }
     
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void add(DepthRuleDto depthRuleDto) {
         DepthRule depthRule = new DepthRule();
         BeanUtils.copyProperties(depthRuleDto,depthRule);
@@ -79,25 +79,25 @@ public class DepthRuleService {
         depthRuleMapper.insert(depthRule);
     }
     
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void depthRuleUpdate(final DepthRuleUpdateDto depthRuleUpdateDto) {
         update(depthRuleUpdateDto);
         ruleService.saveAllRuleCache();
     }
     
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void update(final DepthRuleUpdateDto depthRuleUpdateDto) {
         DepthRule depthRule = new DepthRule();
         BeanUtils.copyProperties(depthRuleUpdateDto,depthRule);
         depthRuleMapper.updateById(depthRule);
     }
     
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void depthRuleUpdateStatus(final DepthRuleStatusDto depthRuleStatusDto) {
         updateStatus(depthRuleStatusDto);
         ruleService.saveAllRuleCache();
     }
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void updateStatus(final DepthRuleStatusDto depthRuleStatusDto) {
         DepthRule depthRule = new DepthRule();
         depthRule.setId(depthRuleStatusDto.getId());
@@ -115,7 +115,7 @@ public class DepthRuleService {
         return depthRuleVos;
     }
     
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void delAll(){
         depthRuleMapper.delAll();
     }

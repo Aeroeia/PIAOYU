@@ -60,7 +60,7 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
     @Autowired
     private RedisCache redisCache;
     
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public String create(final OrderCreateDto orderCreateDto) {
         Order oldOrder = orderMapper.selectById(orderCreateDto.getId());
         if (Objects.nonNull(oldOrder)) {
@@ -82,7 +82,7 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         return String.valueOf(order.getId());
     }
     
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     @ServiceLock(name = ORDER_CANCEL_LOCK,keys = {"#orderCancelDto.orderId"})
     public boolean cancel(OrderCancelDto orderCancelDto){
         Order order = orderMapper.selectById(orderCancelDto.getOrderId());
