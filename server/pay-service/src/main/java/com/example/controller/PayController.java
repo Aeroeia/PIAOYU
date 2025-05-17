@@ -39,7 +39,7 @@ public class PayController {
     
     @ApiOperation(value = "支付状态查询")
     @PostMapping(value = "/trade/check")
-    public ApiResponse<TradeCheckVo> tradeCheck(@Valid @RequestBody TradeCheckDto tradeCheckDto){
+    public ApiResponse<TradeCheckVo> tradeCheck(@Valid @RequestBody TradeCheckDto tradeCheckDto) {
         return ApiResponse.ok(payService.tradeCheck(tradeCheckDto));
     }
 }
