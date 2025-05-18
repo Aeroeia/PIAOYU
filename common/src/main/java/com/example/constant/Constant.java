@@ -19,4 +19,8 @@ public class Constant {
     
     public static final String JOB_RUN_RECORD_ID = "jobRunRecordId";
     
+    public static final String ALIPAY_NOTIFY_SUCCESS_RESULT = "success";
+    
+    public static final String ALIPAY_NOTIFY_FAILURE_RESULT = "failure";
+    
 }

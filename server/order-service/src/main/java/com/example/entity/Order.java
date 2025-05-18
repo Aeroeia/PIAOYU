@@ -48,11 +48,6 @@ public class Order extends BaseData implements Serializable {
     private BigDecimal orderPrice;
 
     /**
-     * 支付订单价格
-     */
-    private BigDecimal payOrderPrice;
-
-    /**
      * 支付订单方式
      */
     private Integer payOrderType;
