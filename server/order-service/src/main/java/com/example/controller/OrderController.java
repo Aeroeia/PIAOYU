@@ -3,8 +3,10 @@ package com.example.controller;
 import com.example.common.ApiResponse;
 import com.example.dto.OrderCancelDto;
 import com.example.dto.OrderCreateDto;
+import com.example.dto.OrderPayCheckDto;
 import com.example.dto.OrderPayDto;
 import com.example.service.OrderService;
+import com.example.vo.OrderPayCheckVo;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,6 +37,12 @@ public class OrderController {
     @PostMapping(value = "/pay")
     public ApiResponse<String> pay(@Valid @RequestBody OrderPayDto orderPayDto) {
         return ApiResponse.ok(orderService.pay(orderPayDto));
+    }
+    
+    @ApiOperation(value = "订单支付后状态检查")
+    @PostMapping(value = "/pay/check")
+    public ApiResponse<OrderPayCheckVo> payCheck(@Valid @RequestBody OrderPayCheckDto orderPayCheckDto) {
+        return ApiResponse.ok(orderService.payCheck(orderPayCheckDto));
     }
     
     @ApiOperation(value = "支付宝支付后回调通知")
