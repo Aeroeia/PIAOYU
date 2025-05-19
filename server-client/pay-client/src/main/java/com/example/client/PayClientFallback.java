@@ -5,6 +5,7 @@ import com.example.dto.NotifyDto;
 import com.example.dto.PayDto;
 import com.example.dto.TradeCheckDto;
 import com.example.enums.BaseCode;
+import com.example.vo.NotifyVo;
 import com.example.vo.TradeCheckVo;
 import org.springframework.stereotype.Component;
 
@@ -17,7 +18,7 @@ public class PayClientFallback implements PayClient{
     }
     
     @Override
-    public ApiResponse<String> notify(final NotifyDto notifyDto) {
+    public ApiResponse<NotifyVo> notify(final NotifyDto notifyDto) {
         return ApiResponse.error(BaseCode.SYSTEM_ERROR);
     }
     
