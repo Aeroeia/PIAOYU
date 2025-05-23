@@ -52,6 +52,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static com.example.service.constant.ProgramOrderConstant.ORDER_TABLE_COUNT;
+
 @Slf4j
 @Service
 public class ProgramOrderService {
@@ -230,8 +232,8 @@ public class ProgramOrderService {
         
         //主订单参数构建
         OrderCreateDto orderCreateDto = new OrderCreateDto();
-        //TODO 生成订单编号
-        orderCreateDto.setOrderNumber(null);
+        //生成订单编号
+        orderCreateDto.setOrderNumber(uidGenerator.getOrderNumber(programOrderCreateDto.getUserId(),ORDER_TABLE_COUNT));
         orderCreateDto.setProgramId(programOrderCreateDto.getProgramId());
         orderCreateDto.setUserId(programOrderCreateDto.getUserId());
         orderCreateDto.setOrderPrice(parameterOrderPrice);
@@ -396,8 +398,8 @@ public class ProgramOrderService {
         ProgramVo programVo = redisCache.get(RedisKeyWrap.createRedisKey(RedisKeyEnum.PROGRAM, programOrderCreateDto.getProgramId()), ProgramVo.class);
         //主订单参数构建
         OrderCreateDto orderCreateDto = new OrderCreateDto();
-        //TODO 生成订单编号
-        orderCreateDto.setOrderNumber(null);
+        //生成订单编号
+        orderCreateDto.setOrderNumber(uidGenerator.getOrderNumber(programOrderCreateDto.getUserId(),ORDER_TABLE_COUNT));
         orderCreateDto.setProgramId(programOrderCreateDto.getProgramId());
         orderCreateDto.setUserId(programOrderCreateDto.getUserId());
         orderCreateDto.setProgramTitle(programVo.getTitle());

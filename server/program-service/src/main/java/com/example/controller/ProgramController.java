@@ -52,6 +52,6 @@ public class ProgramController {
     
     @RequestMapping(value = "/getId")
     public Long getId(){
-        return uidGenerator.getUID();
+        return uidGenerator.getMyId();
     }
 }
