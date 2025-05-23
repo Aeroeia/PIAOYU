@@ -5,7 +5,7 @@ import lombok.Data;
 @Data
 public class OrderTicketUserAggregate {
     
-    private Long orderId;
+    private Long orderNumber;
     
     private Integer orderTicketUserCount;
 }

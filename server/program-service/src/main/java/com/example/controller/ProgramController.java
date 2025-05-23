@@ -1,5 +1,6 @@
 package com.example.controller;
 
+import com.baidu.fsg.uid.UidGenerator;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.example.common.ApiResponse;
 import com.example.dto.ProgramGetDto;
@@ -28,6 +29,9 @@ public class ProgramController {
     @Autowired
     private ProgramService programService;
     
+    @Autowired
+    private UidGenerator uidGenerator;
+    
     @ApiOperation(value = "查询主页列表")
     @PostMapping(value = "/selectHomeList")
     public ApiResponse<Map<String,List<ProgramListVo>>> selectHomeList(@Valid @RequestBody ProgramListDto programPageListDto) {
@@ -44,5 +48,10 @@ public class ProgramController {
     @PostMapping(value = "/get/detail")
     public ApiResponse<ProgramVo> getDetail(@Valid @RequestBody ProgramGetDto programGetDto) {
         return ApiResponse.ok(programService.getDetail(programGetDto));
+    }
+    
+    @RequestMapping(value = "/getId")
+    public Long getId(){
+        return uidGenerator.getUID();
     }
 }
