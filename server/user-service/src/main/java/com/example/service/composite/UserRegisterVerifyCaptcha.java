@@ -12,7 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Component
-public class UserRegisterVerifyCode extends AbstractComposite<UserRegisterDto> {
+public class UserRegisterVerifyCaptcha extends AbstractComposite<UserRegisterDto> {
     
     @Autowired
     private CaptchaHandle captchaHandle;
@@ -27,7 +27,7 @@ public class UserRegisterVerifyCode extends AbstractComposite<UserRegisterDto> {
             captchaVO.setCaptchaType(param.getCaptchaType());
             captchaVO.setPointJson(param.getPointJson());
             captchaVO.setToken(param.getToken());
-            ResponseModel responseModel = captchaHandle.checkCaptchaCode(captchaVO);
+            ResponseModel responseModel = captchaHandle.checkCaptcha(captchaVO);
             if (!responseModel.isSuccess()) {
                 throw new CookFrameException(responseModel.getRepCode(),responseModel.getRepMsg());
             }
