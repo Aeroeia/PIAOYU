@@ -72,6 +72,6 @@ public class UserExistCheckHandler extends AbstractComposite<ProgramOrderCreateD
     
     @Override
     public Integer executeOrder() {
-        return 3;
+        return 5;
     }
 }
