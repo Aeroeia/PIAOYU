@@ -13,7 +13,7 @@ import java.util.List;
 
 @Slf4j
 @Component
-public class ProgramCacheReverseOperate {
+public class ProgramCacheOperate {
     
     @Autowired
     private RedisCache redisCache;
@@ -24,7 +24,7 @@ public class ProgramCacheReverseOperate {
     public void init(){
         try {
             redisScript = new DefaultRedisScript<>();
-            redisScript.setScriptSource(new ResourceScriptSource(new ClassPathResource("lua/ProgramDataReverse.lua")));
+            redisScript.setScriptSource(new ResourceScriptSource(new ClassPathResource("lua/ProgramData.lua")));
             redisScript.setResultType(Integer.class);
         } catch (Exception e) {
             log.error("redisScript init lua error",e);
