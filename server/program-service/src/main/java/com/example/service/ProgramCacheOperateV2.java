@@ -18,7 +18,7 @@ public class ProgramCacheOperateV2 {
     @Autowired
     private RedisCache redisCache;
     
-    private DefaultRedisScript redisScript;
+    private DefaultRedisScript<String> redisScript;
     
     @PostConstruct
     public void init(){
