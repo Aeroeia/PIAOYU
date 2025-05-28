@@ -5,6 +5,8 @@ import org.redisson.api.RLock;
 import java.util.concurrent.TimeUnit;
 
 public interface ServiceLocker {
+    
+    RLock getLock(String lockKey);
 
     RLock lock(String lockKey);
 

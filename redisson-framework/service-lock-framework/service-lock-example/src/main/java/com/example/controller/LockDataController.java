@@ -5,7 +5,7 @@ import com.example.common.ApiResponse;
 import com.example.dto.GetLockDataDto;
 import com.example.dto.LockDataDto;
 import com.example.service.LockDataService;
-import com.example.util.ServiceLockUtil;
+import com.example.util.ServiceLockTool;
 import com.example.vo.LockDataVo;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -28,7 +28,7 @@ public class LockDataController {
     private LockDataService lockDataService;
     
     @Autowired
-    private ServiceLockUtil serviceLockUtil;
+    private ServiceLockTool serviceLockTool;
     
     
     @ApiOperation(value = "查询数据")
@@ -55,7 +55,7 @@ public class LockDataController {
     @PostMapping(value = "/add/stock/service/lock/v2")
     public ApiResponse<Boolean> addStockServiceLockV2(@Valid @RequestBody LockDataDto lockDataDto){
         String[] params = {String.valueOf(lockDataDto.getId())};
-        serviceLockUtil.execute(() -> lockDataService.addStock(lockDataDto),LOCK_DATA,params);
+        serviceLockTool.execute(() -> lockDataService.addStock(lockDataDto),LOCK_DATA,params);
         return ApiResponse.ok(true);
     }
 
