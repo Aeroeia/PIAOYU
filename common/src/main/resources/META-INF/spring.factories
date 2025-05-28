@@ -1,6 +1,0 @@
-org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
-  com.example.config.JsonMapperAutoConfig
-org.springframework.boot.SpringApplicationRunListener=\
-  com.example.runlistener.CustomEventPublishingRunListener
-org.springframework.boot.env.EnvironmentPostProcessor=\
-  com.example.environment.SpringEnvironment

@@ -21,32 +21,34 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<groupId>com.example</groupId>
-	<artifactId>cook-frame</artifactId>
+	<artifactId>damai</artifactId>
 	<version>${revision}</version>
 	<packaging>pom</packaging>
 
 	<name>${project.artifactId}</name>
-	<description>微服务高度定制化</description>
+	<description>
+		诚意推荐 真实还原生产环境的微服务企业级高并发项目
+		SpringBoot + SpringCloudAlibaba + 多线程 + Redis + Kafka + ELK + Docker + Sentinel 等技术
+		包括完整的各种组件配置、高并发下的支付订单解决方案、使用设计模式进行解耦、完整的配套文档和视频
+	</description>
 
 	<modules>
-		<module>common</module>
-		<module>redis-tool</module>
-		<module>distribute-es-tool</module>
-		<module>id-generator-tool</module>
-		<module>spring-cloud-framework</module>
-		<module>thread-pool-tool</module>
-		<module>redisson-framework</module>
-		<module>arithmetic</module>
-		<module>server</module>
-		<module>server-client</module>
-		<module>api-stat</module>
-		<module>captcha-tool</module>
+		<module>damai-common</module>
+		<module>damai-redis-framework</module>
+		<module>damai-elasticsearch-framework</module>
+		<module>damai-id-generator-framework</module>
+		<module>damai-spring-cloud-framework</module>
+		<module>damai-thread-pool-framework</module>
+		<module>damai-redisson-framework</module>
+		<module>damai-server</module>
+		<module>damai-server-client</module>
+		<module>damai-captcha-framework</module>
 	</modules>
 
 	<properties>
 		<revision>0.0.1-SNAPSHOT</revision>
 		<java.version>1.8</java.version>
-		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<project.sourceEncoding>UTF-8</project.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<spring-boot.version>2.3.12.RELEASE</spring-boot.version>
 		<spring-cloud.version>Hoxton.SR12</spring-cloud.version>
@@ -58,13 +60,14 @@
 		<nacos.version>2.0.3</nacos.version>
 		<jasypt.version>3.0.5</jasypt.version>
 		<maven-compiler.version>3.8.1</maven-compiler.version>
+		<maven-resources.version>3.2.0</maven-resources.version>
 		<maven-source.version>3.2.1</maven-source.version>
 		<flatten-maven.version>1.4.1</flatten-maven.version>
 		<fastjson.version>2.0.9</fastjson.version>
 		<oshi-core.version>6.2.2</oshi-core.version>
 		<commons-lang.version>2.6</commons-lang.version>
 		<jjwt.version>0.9.1</jjwt.version>
-		<hutool.version>5.8.16</hutool.version>
+		<hutool.version>5.8.25</hutool.version>
 		<log4j.version>2.17.0</log4j.version>
 		<pagehelper.version>5.2.0</pagehelper.version>
 		<commons-collections.version>3.2.2</commons-collections.version>
@@ -83,6 +86,8 @@
 		<shardingsphere.version>5.3.2</shardingsphere.version>
 		<snakeyaml.version>1.33</snakeyaml.version>
 		<spring-boot-starter-captcha.version>1.3.0</spring-boot-starter-captcha.version>
+		<caffeine.version>2.9.3</caffeine.version>
+		<spotless-maven-plugin.version>2.22.1</spotless-maven-plugin.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -123,10 +128,41 @@
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>${maven-compiler.version}</version>
 				<configuration>
-					<encoding>${project.build.sourceEncoding}</encoding>
 					<source>${java.version}</source>
 					<target>${java.version}</target>
-					<encoding>${project.build.sourceEncoding}</encoding>
+					<encoding>${project.sourceEncoding}</encoding>
+				</configuration>
+			</plugin>
+<!--			<plugin>-->
+<!--				<groupId>com.diffplug.spotless</groupId>-->
+<!--				<artifactId>spotless-maven-plugin</artifactId>-->
+<!--				<version>${spotless-maven-plugin.version}</version>-->
+<!--				<configuration>-->
+<!--					<java>-->
+<!--						<eclipse>-->
+<!--							<file>${project.basedir}/spotless/spotless.xml</file>-->
+<!--						</eclipse>-->
+<!--						<licenseHeader>-->
+<!--							<file>${project.basedir}/spotless/license-header</file>-->
+<!--						</licenseHeader>-->
+<!--					</java>-->
+<!--				</configuration>-->
+<!--				&lt;!&ndash;绑定maven生命周期，在compile时会执行apply &ndash;&gt;-->
+<!--				<executions>-->
+<!--					<execution>-->
+<!--						<goals>-->
+<!--							<goal>apply</goal>-->
+<!--						</goals>-->
+<!--						<phase>compile</phase>-->
+<!--					</execution>-->
+<!--				</executions>-->
+<!--			</plugin>-->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-resources-plugin</artifactId>
+				<version>${maven-resources.version}</version>
+				<configuration>
+					<encoding>${project.sourceEncoding}</encoding>
 				</configuration>
 			</plugin>
 			<plugin>

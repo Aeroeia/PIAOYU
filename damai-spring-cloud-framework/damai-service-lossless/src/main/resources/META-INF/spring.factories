@@ -1,0 +1,3 @@
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+  com.damai.refresh.conf.RefreshConfig,\
+  com.damai.stat.StatConfig

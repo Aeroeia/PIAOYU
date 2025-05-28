@@ -1,0 +1,4 @@
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+  com.damai.swagger.SwaggerConfiguration,\
+  com.damai.mybatisplus.MybatisPlusAutoConfiguration,\
+  com.damai.composite.CompositeAutoConfiguration

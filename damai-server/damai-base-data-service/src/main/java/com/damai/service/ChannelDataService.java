@@ -1,0 +1,63 @@
+package com.damai.service;
+
+import com.baidu.fsg.uid.UidGenerator;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.damai.core.RedisKeyManage;
+import com.damai.dto.ChannelDataAddDto;
+import com.damai.dto.GetChannelDataByCodeDto;
+import com.damai.entity.ChannelData;
+import com.damai.enums.Status;
+import com.damai.mapper.ChannelDataMapper;
+import com.damai.redis.RedisKeyBuild;
+import com.damai.util.DateUtils;
+import com.damai.vo.GetChannelDataVo;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import com.damai.redis.RedisCache;
+import javax.annotation.Resource;
+import java.util.Optional;
+
+@Service
+@Slf4j
+public class ChannelDataService {
+    
+    @Autowired
+    private ChannelDataMapper channelDataMapper;
+    
+    @Resource
+    private UidGenerator uidGenerator;
+    
+    @Autowired
+    private RedisCache redisCache; 
+    
+    public GetChannelDataVo getByCode(GetChannelDataByCodeDto dto){
+        GetChannelDataVo getChannelDataVo = new GetChannelDataVo();
+        LambdaQueryWrapper<ChannelData> wrapper = Wrappers.lambdaQuery(ChannelData.class)
+                .eq(ChannelData::getStatus, Status.RUN.getCode())
+                .eq(ChannelData::getCode,dto.getCode());
+        Optional.ofNullable(channelDataMapper.selectOne(wrapper)).ifPresent(channelData -> {
+            BeanUtils.copyProperties(channelData,getChannelDataVo);
+        });
+        return getChannelDataVo;
+    }
+    
+    @Transactional(rollbackFor = Exception.class)
+    public void add(ChannelDataAddDto channelDataAddDto) {
+        ChannelData channelData = new ChannelData();
+        BeanUtils.copyProperties(channelDataAddDto,channelData);
+        channelData.setId(uidGenerator.getUid());
+        channelData.setCreateTime(DateUtils.now());
+        channelDataMapper.insert(channelData);
+        addRedisChannelData(channelData);
+    }
+    
+    private void addRedisChannelData(ChannelData channelData){
+        GetChannelDataVo getChannelDataVo = new GetChannelDataVo();
+        BeanUtils.copyProperties(channelData,getChannelDataVo);
+        redisCache.set(RedisKeyBuild.createRedisKey(RedisKeyManage.CHANNEL_DATA,getChannelDataVo.getCode()),getChannelDataVo);
+    }
+}

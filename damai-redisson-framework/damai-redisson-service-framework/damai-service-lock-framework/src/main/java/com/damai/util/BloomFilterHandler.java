@@ -1,0 +1,47 @@
+package com.damai.util;
+
+
+import com.damai.config.RedissonProperties;
+import org.redisson.api.RBloomFilter;
+import org.redisson.api.RedissonClient;
+
+
+
+public class BloomFilterHandler {
+    
+    private final RBloomFilter<String> cachePenetrationBloomFilter;
+    
+    public BloomFilterHandler(RedissonClient redissonClient, RedissonProperties redissonProperties){
+        RBloomFilter<String> cachePenetrationBloomFilter = redissonClient.getBloomFilter(redissonProperties.getRbLoomFilterName());
+        cachePenetrationBloomFilter.tryInit(redissonProperties.getExpectedInsertions(), redissonProperties.getFalseProbability());
+        this.cachePenetrationBloomFilter = cachePenetrationBloomFilter;
+    }
+    
+    public boolean add(String data) {
+        return cachePenetrationBloomFilter.add(data);
+    }
+    
+    public boolean contains(String data) {
+        return cachePenetrationBloomFilter.contains(data);
+    }
+    
+    public long getExpectedInsertions() {
+        return cachePenetrationBloomFilter.getExpectedInsertions();
+    }
+    
+    public double getFalseProbability() {
+        return cachePenetrationBloomFilter.getFalseProbability();
+    }
+    
+    public long getSize() {
+        return cachePenetrationBloomFilter.getSize();
+    }
+    
+    public int getHashIterations() {
+        return cachePenetrationBloomFilter.getHashIterations();
+    }
+    
+    public long count() {
+        return cachePenetrationBloomFilter.count();
+    }
+}
