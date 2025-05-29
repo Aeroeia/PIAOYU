@@ -1,4 +1,4 @@
-package com.damai.event;
+package com.damai.initialize.execute.event;
 
 import com.damai.composite.CompositeContainer;
 import com.damai.init.InitDataContainer;
@@ -7,7 +7,7 @@ import org.springframework.boot.context.event.ApplicationStartedEvent;
 import org.springframework.context.ApplicationListener;
 
 @AllArgsConstructor
-public class ApplicationStartedEventHandler implements ApplicationListener<ApplicationStartedEvent> {
+public class ApplicationStartedEventListener implements ApplicationListener<ApplicationStartedEvent> {
     
     private final CompositeContainer compositeContainer;
     
@@ -19,6 +19,4 @@ public class ApplicationStartedEventHandler implements ApplicationListener<Appli
         
         initDataContainer.initData(event.getApplicationContext());
     }
-    
-    
 }
