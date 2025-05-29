@@ -1,14 +1,14 @@
 package com.damai.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
-import com.damai.data.BaseData;
+import com.damai.data.BaseTableData;
 import lombok.Data;
 
 import java.io.Serializable;
 
 @Data
 @TableName("d_program")
-public class Program extends BaseData implements Serializable {
+public class Program extends BaseTableData implements Serializable {
 
     private static final long serialVersionUID = 1L;
 

@@ -1,11 +1,11 @@
 package com.damai.entity;
 
-import com.damai.data.BaseData;
+import com.damai.data.BaseTableData;
 import lombok.Data;
 
 import java.io.Serializable;
 @Data
-public class ChannelData extends BaseData implements Serializable {
+public class ChannelTableData extends BaseTableData implements Serializable {
     /**
      * id
      * */

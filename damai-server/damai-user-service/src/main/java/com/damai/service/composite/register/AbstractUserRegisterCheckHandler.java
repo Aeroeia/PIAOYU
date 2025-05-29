@@ -1,8 +1,10 @@
 package com.damai.service.composite.register;
 
-import com.damai.composite.AbstractComposite;
+
 import com.damai.dto.UserRegisterDto;
 import com.damai.enums.CompositeCheckType;
+import com.damai.initialize.composite.AbstractComposite;
+
 
 public abstract class AbstractUserRegisterCheckHandler extends AbstractComposite<UserRegisterDto> {
     

@@ -1,7 +1,7 @@
 package com.damai.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
-import com.damai.data.BaseData;
+import com.damai.data.BaseTableData;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -9,7 +9,7 @@ import java.math.BigDecimal;
 
 @Data
 @TableName("d_seat")
-public class Seat extends BaseData implements Serializable {
+public class Seat extends BaseTableData implements Serializable {
 
     private static final long serialVersionUID = 1L;
 

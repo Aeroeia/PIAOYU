@@ -6,7 +6,7 @@ import lombok.Data;
 
 import java.util.Date;
 @Data
-public class BaseData {
+public class BaseTableData {
 
     /**
      * 创建时间
