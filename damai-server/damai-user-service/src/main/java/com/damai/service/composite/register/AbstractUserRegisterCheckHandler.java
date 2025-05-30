@@ -3,7 +3,7 @@ package com.damai.service.composite.register;
 
 import com.damai.dto.UserRegisterDto;
 import com.damai.enums.CompositeCheckType;
-import com.damai.initialize.composite.AbstractComposite;
+import com.damai.initialize.impl.composite.AbstractComposite;
 
 
 public abstract class AbstractUserRegisterCheckHandler extends AbstractComposite<UserRegisterDto> {

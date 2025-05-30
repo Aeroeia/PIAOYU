@@ -1,29 +1,25 @@
 package com.damai.initialize.execute;
 
-import com.damai.initialize.base.InitializeHandler;
-import com.damai.initialize.context.InitializeContext;
-import lombok.AllArgsConstructor;
+import com.damai.initialize.execute.base.AbstractApplicationExecute;
 import org.springframework.context.ConfigurableApplicationContext;
 
 import javax.annotation.PostConstruct;
-import java.util.Comparator;
-import java.util.List;
 
 import static com.damai.initialize.constant.InitializeHandlerType.APPLICATION_START_POST_CONSTRUCT;
 
-@AllArgsConstructor
-public class ApplicationPostConstructExecute {
+public class ApplicationPostConstructExecute extends AbstractApplicationExecute {
     
-    private final ConfigurableApplicationContext applicationContext;
-    
-    private final InitializeContext initializeContext;
+    public ApplicationPostConstructExecute(ConfigurableApplicationContext applicationContext){
+        super(applicationContext);
+    }
     
     @PostConstruct
     public void postConstructExecute() {
-        List<InitializeHandler> initializeHandlers = initializeContext.get(APPLICATION_START_POST_CONSTRUCT);
-        initializeHandlers.stream().sorted(Comparator.comparingInt(InitializeHandler::executeOrder))
-                .forEach(initializeHandler -> {
-                    initializeHandler.executeInit(applicationContext);
-                });
+        execute();
+    }
+    
+    @Override
+    public String type() {
+        return APPLICATION_START_POST_CONSTRUCT;
     }
 }
