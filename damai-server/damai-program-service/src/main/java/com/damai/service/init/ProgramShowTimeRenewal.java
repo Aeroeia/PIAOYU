@@ -1,13 +1,13 @@
 package com.damai.service.init;
 
-import com.damai.initialize.base.AbstractApplicationPostConstructInitializeHandler;
+import com.damai.initialize.base.AbstractApplicationPostConstructHandler;
 import com.damai.service.ProgramShowTimeService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.stereotype.Component;
 
 @Component
-public class ProgramShowTimeRenewal extends AbstractApplicationPostConstructInitializeHandler {
+public class ProgramShowTimeRenewal extends AbstractApplicationPostConstructHandler {
     
     @Autowired
     private ProgramShowTimeService programShowTimeService;

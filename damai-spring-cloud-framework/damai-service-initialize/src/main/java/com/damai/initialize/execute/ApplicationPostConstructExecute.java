@@ -5,7 +5,7 @@ import org.springframework.context.ConfigurableApplicationContext;
 
 import javax.annotation.PostConstruct;
 
-import static com.damai.initialize.constant.InitializeHandlerType.APPLICATION_START_POST_CONSTRUCT;
+import static com.damai.initialize.constant.InitializeHandlerType.APPLICATION_POST_CONSTRUCT;
 
 public class ApplicationPostConstructExecute extends AbstractApplicationExecute {
     
@@ -20,6 +20,6 @@ public class ApplicationPostConstructExecute extends AbstractApplicationExecute 
     
     @Override
     public String type() {
-        return APPLICATION_START_POST_CONSTRUCT;
+        return APPLICATION_POST_CONSTRUCT;
     }
 }

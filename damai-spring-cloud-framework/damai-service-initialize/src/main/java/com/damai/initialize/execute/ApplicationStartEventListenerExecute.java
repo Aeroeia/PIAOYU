@@ -5,7 +5,7 @@ import org.springframework.boot.context.event.ApplicationStartedEvent;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.ConfigurableApplicationContext;
 
-import static com.damai.initialize.constant.InitializeHandlerType.APPLICATION_START_EVENT_LISTENER;
+import static com.damai.initialize.constant.InitializeHandlerType.APPLICATION_EVENT_LISTENER;
 
 public class ApplicationStartEventListenerExecute extends AbstractApplicationExecute implements ApplicationListener<ApplicationStartedEvent> {
     
@@ -20,6 +20,6 @@ public class ApplicationStartEventListenerExecute extends AbstractApplicationExe
     
     @Override
     public String type() {
-        return APPLICATION_START_EVENT_LISTENER;
+        return APPLICATION_EVENT_LISTENER;
     }
 }

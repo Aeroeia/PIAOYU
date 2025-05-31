@@ -4,7 +4,7 @@ import com.damai.initialize.execute.base.AbstractApplicationExecute;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.ConfigurableApplicationContext;
 
-import static com.damai.initialize.constant.InitializeHandlerType.APPLICATION_START_INITIALIZING_BEAN;
+import static com.damai.initialize.constant.InitializeHandlerType.APPLICATION_INITIALIZING_BEAN;
 
 
 public class ApplicationInitializingBeanExecute extends AbstractApplicationExecute implements InitializingBean {
@@ -20,6 +20,6 @@ public class ApplicationInitializingBeanExecute extends AbstractApplicationExecu
     
     @Override
     public String type() {
-        return APPLICATION_START_INITIALIZING_BEAN;
+        return APPLICATION_INITIALIZING_BEAN;
     }
 }
