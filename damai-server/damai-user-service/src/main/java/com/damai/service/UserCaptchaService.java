@@ -2,10 +2,15 @@ package com.damai.service;
 
 import com.anji.captcha.model.common.ResponseModel;
 import com.anji.captcha.model.vo.CaptchaVO;
+import com.damai.core.RedisKeyManage;
+import com.damai.service.lua.CheckNeedCaptchaOperate;
 import com.damai.service.tool.RequestCounter;
 import com.damai.vo.CheckVerifyVo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 public class UserCaptchaService {
@@ -16,13 +21,23 @@ public class UserCaptchaService {
     @Autowired
     private RequestCounter requestCounter;
     
+    @Autowired
+    private CheckNeedCaptchaOperate checkNeedCaptchaOperate;
+    
     public CheckVerifyVo checkNeedCaptcha() {
         CheckVerifyVo checkVerifyVo = new CheckVerifyVo();
         checkVerifyVo.setType(0);
-        boolean result = requestCounter.onRequest();
-        if (result) {
-            checkVerifyVo.setType(1);
-        }
+//        boolean result = requestCounter.onRequest();
+//        if (result) {
+//            checkVerifyVo.setType(1);
+//        }
+        List<String> keys = new ArrayList<>();
+        keys.add(RedisKeyManage.COUNTER.getKey());
+//        keys.add();
+//        keys.add();
+//        keys.add();
+//        keys.add();
+        checkNeedCaptchaOperate.checkNeedCaptchaOperate(keys,null);
         return checkVerifyVo;
     }
     
