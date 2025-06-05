@@ -4,12 +4,12 @@ import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @Data
-@ConfigurationProperties(prefix = RedissonProperties.PREFIX)
-public class RedissonProperties {
+@ConfigurationProperties(prefix = BloomFilterProperties.PREFIX)
+public class BloomFilterProperties {
 
-    public static final String PREFIX = "redisson";
+    public static final String PREFIX = "bloom-filter";
     
-    private String rbLoomFilterName = "user_register_rb_loom_filter";
+    private String name;
     
     private Long expectedInsertions = 20000L;
     

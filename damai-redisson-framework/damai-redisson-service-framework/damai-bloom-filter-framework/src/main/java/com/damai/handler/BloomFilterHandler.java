@@ -1,7 +1,7 @@
-package com.damai.util;
+package com.damai.handler;
 
 
-import com.damai.config.RedissonProperties;
+import com.damai.config.BloomFilterProperties;
 import org.redisson.api.RBloomFilter;
 import org.redisson.api.RedissonClient;
 
@@ -11,9 +11,9 @@ public class BloomFilterHandler {
     
     private final RBloomFilter<String> cachePenetrationBloomFilter;
     
-    public BloomFilterHandler(RedissonClient redissonClient, RedissonProperties redissonProperties){
-        RBloomFilter<String> cachePenetrationBloomFilter = redissonClient.getBloomFilter(redissonProperties.getRbLoomFilterName());
-        cachePenetrationBloomFilter.tryInit(redissonProperties.getExpectedInsertions(), redissonProperties.getFalseProbability());
+    public BloomFilterHandler(RedissonClient redissonClient, BloomFilterProperties bloomFilterProperties){
+        RBloomFilter<String> cachePenetrationBloomFilter = redissonClient.getBloomFilter(bloomFilterProperties.getName());
+        cachePenetrationBloomFilter.tryInit(bloomFilterProperties.getExpectedInsertions(), bloomFilterProperties.getFalseProbability());
         this.cachePenetrationBloomFilter = cachePenetrationBloomFilter;
     }
     
