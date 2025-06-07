@@ -26,6 +26,4 @@ public class BusinessEsProperties {
     private Integer connectionRequestTimeOut = 40000;
     
     private Integer maxConnectNum = 400;
-    
-    private Integer maxConnectPerRoute = 400; 
 }

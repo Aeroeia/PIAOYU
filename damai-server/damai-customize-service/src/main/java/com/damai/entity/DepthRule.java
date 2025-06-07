@@ -1,11 +1,14 @@
 package com.damai.entity;
 
+import com.baomidou.mybatisplus.annotation.TableName;
+import com.damai.data.BaseTableData;
 import lombok.Data;
 
-import java.util.Date;
+import java.io.Serializable;
 
 @Data
-public class DepthRule {
+@TableName("d_depth_rule")
+public class DepthRule extends BaseTableData implements Serializable {
     
     private Long id;
     
@@ -26,8 +29,4 @@ public class DepthRule {
     private String limitApi;
     
     private String message;
-    
-    private Integer status;
-    
-    private Date createTime;
 }

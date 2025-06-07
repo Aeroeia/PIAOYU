@@ -1,11 +1,14 @@
 package com.damai.entity;
 
+import com.baomidou.mybatisplus.annotation.TableName;
+import com.damai.data.BaseTableData;
 import lombok.Data;
 
-import java.util.Date;
+import java.io.Serializable;
 
 @Data
-public class ApiData {
+@TableName("d_api_data")
+public class ApiData extends BaseTableData implements Serializable {
     
     private Long id;
     
@@ -20,10 +23,6 @@ public class ApiData {
     private String apiParams;
     
     private String apiUrl;
-    
-    private Date createTime;
-    
-    private Integer status;
     
     private String callDayTime;
     

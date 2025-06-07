@@ -1,10 +1,12 @@
 package com.damai.entity;
 
+import com.baomidou.mybatisplus.annotation.TableName;
 import com.damai.data.BaseTableData;
 import lombok.Data;
 
 import java.io.Serializable;
 @Data
+@TableName("d_channel_data")
 public class ChannelTableData extends BaseTableData implements Serializable {
     /**
      * id

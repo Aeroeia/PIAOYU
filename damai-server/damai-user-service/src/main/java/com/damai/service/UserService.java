@@ -10,7 +10,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.damai.client.BaseDataClient;
 import com.damai.common.ApiResponse;
 import com.damai.core.RedisKeyManage;
-import com.damai.core.StringUtil;
+import com.damai.util.StringUtil;
 import com.damai.dto.GetChannelDataByCodeDto;
 import com.damai.dto.UserAuthenticationDto;
 import com.damai.dto.UserExistDto;
@@ -335,7 +335,7 @@ public class UserService extends ServiceImpl<UserMapper, User> {
         UserVo userVo = getById(userIdDto);
         
         LambdaQueryWrapper<TicketUser> ticketUserLambdaQueryWrapper = Wrappers.lambdaQuery(TicketUser.class)
-                .in(TicketUser::getId, userGetAndTicketUserListDto.getTicketUserIdList());
+                .eq(TicketUser::getUserId, userGetAndTicketUserListDto.getUserId());
         List<TicketUser> ticketUserList = ticketUserMapper.selectList(ticketUserLambdaQueryWrapper);
         List<TicketUserVo> ticketUserVoList = BeanUtil.copyToList(ticketUserList, TicketUserVo.class);
         

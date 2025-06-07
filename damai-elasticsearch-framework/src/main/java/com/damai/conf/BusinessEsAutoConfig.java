@@ -1,7 +1,7 @@
 package com.damai.conf;
 
 
-import com.damai.core.StringUtil;
+import com.damai.util.StringUtil;
 import com.damai.util.BusinessEsHandle;
 import org.apache.http.Header;
 import org.apache.http.HttpHeaders;
@@ -41,8 +41,7 @@ public class BusinessEsAutoConfig {
 			CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
 			credentialsProvider.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(userName, passWord));
 			builder.setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider)
-                    .setDefaultIOReactorConfig(
-                    IOReactorConfig.custom()
+                    .setDefaultIOReactorConfig(IOReactorConfig.custom()
                             // 设置线程数
                             .setIoThreadCount(businessEsProperties.getMaxConnectNum()) 
                             .build()));
@@ -55,7 +54,7 @@ public class BusinessEsAutoConfig {
 		builder.setRequestConfigCallback(requestConfigBuilder -> requestConfigBuilder
 				.setConnectTimeout(businessEsProperties.getConnectTimeOut())
 				.setSocketTimeout(businessEsProperties.getSocketTimeOut())
-		.setConnectionRequestTimeout(businessEsProperties.getConnectionRequestTimeOut()));
+				.setConnectionRequestTimeout(businessEsProperties.getConnectionRequestTimeOut()));
         return builder.build();
 	}
 	

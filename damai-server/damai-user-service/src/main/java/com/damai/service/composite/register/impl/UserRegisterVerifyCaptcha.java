@@ -3,7 +3,7 @@ package com.damai.service.composite.register.impl;
 import com.anji.captcha.model.common.ResponseModel;
 import com.anji.captcha.model.vo.CaptchaVO;
 import com.damai.core.RedisKeyManage;
-import com.damai.core.StringUtil;
+import com.damai.util.StringUtil;
 import com.damai.dto.UserRegisterDto;
 import com.damai.enums.BaseCode;
 import com.damai.enums.VerifyCaptcha;
@@ -24,9 +24,6 @@ public class UserRegisterVerifyCaptcha extends AbstractUserRegisterCheckHandler 
     @Autowired
     private RedisCache redisCache;
     
-    /**
-     * 验证验证码是否正确
-     * */
     @Override
     protected void execute(UserRegisterDto param) {
         String verifyCaptcha = redisCache.get(RedisKeyBuild.createRedisKey(RedisKeyManage.VERIFY_CAPTCHA_ID,param.getCaptchaId()), String.class);

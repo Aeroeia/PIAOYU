@@ -2,7 +2,7 @@ package com.damai.lockinfo;
 
 
 import com.damai.core.SpringUtil;
-import com.damai.core.StringUtil;
+import com.damai.util.StringUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.reflect.MethodSignature;
@@ -55,7 +55,7 @@ public abstract class AbstractLockInfoHandle implements LockInfoHandle {
      * */
     private String getRelKey(JoinPoint joinPoint, String[] keys){
         Method method = getMethod(joinPoint);
-        List<String> definitionKeys = getSpelRelKey(keys, method, joinPoint.getArgs());
+        List<String> definitionKeys = getSpElKey(keys, method, joinPoint.getArgs());
         return SEPARATOR + String.join(SEPARATOR, definitionKeys);
     }
     
@@ -73,7 +73,7 @@ public abstract class AbstractLockInfoHandle implements LockInfoHandle {
         return method;
     }
 
-    private List<String> getSpelRelKey(String[] definitionKeys, Method method, Object[] parameterValues) {
+    private List<String> getSpElKey(String[] definitionKeys, Method method, Object[] parameterValues) {
         List<String> definitionKeyList = new ArrayList<>();
         for (String definitionKey : definitionKeys) {
             if (!ObjectUtils.isEmpty(definitionKey)) {

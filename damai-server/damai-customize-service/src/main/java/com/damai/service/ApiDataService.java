@@ -7,7 +7,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.damai.core.RepeatExecuteLimitConstants;
-import com.damai.core.StringUtil;
+import com.damai.util.StringUtil;
 import com.damai.dto.ApiDataDto;
 import com.damai.entity.ApiData;
 import com.damai.mapper.ApiDataMapper;
@@ -32,8 +32,11 @@ public class ApiDataService extends ServiceImpl<ApiDataMapper,ApiData> {
     
     @RepeatExecuteLimit(name = RepeatExecuteLimitConstants.CONSUMER_API_DATA_MESSAGE,keys = {"#apiData.id"})
     public void saveApiData(ApiData apiData){
-        log.info("saveApiData apiData:{}", JSON.toJSONString(apiData));
-        apiDataMapper.insert(apiData);
+        ApiData dbApiData = apiDataMapper.selectById(apiData.getId());
+        if (Objects.isNull(dbApiData)) {
+            log.info("saveApiData apiData:{}", JSON.toJSONString(apiData));
+            apiDataMapper.insert(apiData);
+        }
     }
     
     public Page<ApiDataVo> pageList(final ApiDataDto dto) {

@@ -1,11 +1,14 @@
 package com.damai.entity;
 
+import com.baomidou.mybatisplus.annotation.TableName;
+import com.damai.data.BaseTableData;
 import lombok.Data;
 
-import java.util.Date;
+import java.io.Serializable;
 
 @Data
-public class Rule {
+@TableName("d_rule")
+public class Rule extends BaseTableData implements Serializable {
     
     private Long id;
 
@@ -22,8 +25,4 @@ public class Rule {
     private String limitApi;
     
     private String message;
-    
-    private Integer status;
-    
-    private Date createTime;
 }

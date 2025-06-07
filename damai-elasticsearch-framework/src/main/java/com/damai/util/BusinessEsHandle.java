@@ -4,7 +4,6 @@ import cn.hutool.core.collection.CollectionUtil;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
-import com.damai.core.StringUtil;
 import com.damai.dto.EsDataQueryDto;
 import com.damai.dto.EsDocumentMappingDto;
 import com.damai.dto.EsGeoPointDto;
@@ -98,6 +97,7 @@ public class BusinessEsHandle {
     
         indexRequest.source(builder);
         String source = indexRequest.source().utf8ToString();
+        log.info("create index execute dsl : {}",source);
         HttpEntity entity = new NStringEntity(source, ContentType.APPLICATION_JSON);
         Request request = new Request("PUT","/"+ indexName);
         request.setEntity(entity);
