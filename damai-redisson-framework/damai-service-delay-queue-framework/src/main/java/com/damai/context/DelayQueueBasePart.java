@@ -9,13 +9,7 @@ import org.redisson.api.RedissonClient;
 @AllArgsConstructor
 public class DelayQueueBasePart {
     
-    /**
-     * redisson客户端
-     * */
     private final RedissonClient redissonClient;
     
-    /**
-     * 配置信息
-     * */
     private final DelayQueueProperties delayQueueProperties;
 }

@@ -1,20 +1,17 @@
 package com.damai.context;
 
-import com.damai.config.DelayQueueProperties;
 import com.damai.core.ConsumerTask;
 import lombok.Data;
-import org.redisson.api.RedissonClient;
 
 @Data
-public class DelayQueuePart extends DelayQueueBasePart {
+public class DelayQueuePart {
     
-    /**
-     * 客户端对象
-     * */
+    private final DelayQueueBasePart delayQueueBasePart;
+ 
     private final ConsumerTask consumerTask;
     
-    public DelayQueuePart(RedissonClient redissonClient, DelayQueueProperties delayQueueProperties, ConsumerTask consumerTask){
-        super(redissonClient,delayQueueProperties);
+    public DelayQueuePart(DelayQueueBasePart delayQueueBasePart, ConsumerTask consumerTask){
+        this.delayQueueBasePart = delayQueueBasePart;
         this.consumerTask = consumerTask;
     }
 }
