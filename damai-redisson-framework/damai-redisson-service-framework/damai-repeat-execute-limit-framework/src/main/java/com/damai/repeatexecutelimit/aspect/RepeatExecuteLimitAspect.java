@@ -47,21 +47,18 @@ public class RepeatExecuteLimitAspect {
         String lockName = lockInfoHandle.getLockName(joinPoint,repeatLimit.name(), repeatLimit.keys());
         String repeatFlagName = PREFIX_NAME + lockName;
         Object flagObject;
-        if (durationTime > 0) {
-            flagObject = redissonDataHandle.get(repeatFlagName);
-            if (SUCCESS_FLAG.equals(flagObject)) {
-                throw new DaMaiFrameException(message);
-            }
+        flagObject = redissonDataHandle.get(repeatFlagName);
+        if (SUCCESS_FLAG.equals(flagObject)) {
+            throw new DaMaiFrameException(message);
         }
-        ReentrantLock localLock = localLockCache.getLock(lockName,false);
+        ReentrantLock localLock = localLockCache.getLock(lockName,true);
         boolean localLockResult = localLock.tryLock();
         if (!localLockResult) {
             throw new DaMaiFrameException(message);
         }
         try {
-            ServiceLocker lock = serviceLockFactory.getLock(LockType.Reentrant);
+            ServiceLocker lock = serviceLockFactory.getLock(LockType.Fair);
             boolean result = lock.tryLock(lockName, TimeUnit.SECONDS, 0);
-            //加锁成功执行
             if (result) {
                 try{
                     flagObject = redissonDataHandle.get(repeatFlagName);
@@ -69,10 +66,12 @@ public class RepeatExecuteLimitAspect {
                         throw new DaMaiFrameException(message);
                     }
                     obj = joinPoint.proceed();
-                    try {
-                        redissonDataHandle.set(repeatFlagName,SUCCESS_FLAG,durationTime,TimeUnit.SECONDS);
-                    }catch (Exception e) {
-                        log.error("getBucket error",e);
+                    if (durationTime > 0) {
+                        try {
+                            redissonDataHandle.set(repeatFlagName,SUCCESS_FLAG,durationTime,TimeUnit.SECONDS);
+                        }catch (Exception e) {
+                            log.error("getBucket error",e);
+                        }
                     }
                     return obj;
                 } finally {
