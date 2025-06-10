@@ -17,6 +17,7 @@ public class RefreshController {
 
     @Autowired(required = false)
     private NacosAndRibbonCustom nacosAndRibbonCustom;
+    
     @Autowired(required = false)
     private NacosCustom nacosCustom;
     
@@ -27,9 +28,9 @@ public class RefreshController {
     @RequestMapping(value = "/refreshNacosAndRibbonCache", method = RequestMethod.POST)
     public Boolean refreshNacosAndRibbonCache() {
         if (nacosAndRibbonCustom != null) {
-            nacosAndRibbonCustom.refreshNacosAndRibbonCache();
+            return nacosAndRibbonCustom.refreshNacosAndRibbonCache();
         }
-        return true;
+        return false;
 
     }
 
@@ -37,11 +38,11 @@ public class RefreshController {
      * 获取ribbon和nacos缓存服务列表
      * */
     @RequestMapping(value = "/getNacosAndRibbonCacheList", method = RequestMethod.POST)
-    public Map getNacosAndRibbonCacheList() {
+    public Map<String,?> getNacosAndRibbonCacheList() {
         if (nacosAndRibbonCustom != null) {
             return nacosAndRibbonCustom.getNacosAndRibbonCacheList();
         }
-        return new HashMap(2);
+        return new HashMap<>(2);
     }
 
     /**

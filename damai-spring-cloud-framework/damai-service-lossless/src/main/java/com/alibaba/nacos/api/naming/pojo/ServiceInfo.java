@@ -61,6 +61,8 @@ public class ServiceInfo {
 
     private String notifyService;
     
+    private ServiceInfo changeServiceInfo;
+    
     public ServiceInfo() {
     }
     
@@ -301,5 +303,13 @@ public class ServiceInfo {
 
     public void setNotifyService(String notifyService) {
         this.notifyService = notifyService;
+    }
+    
+    public ServiceInfo getChangeServiceInfo() {
+        return changeServiceInfo;
+    }
+    
+    public void setChangeServiceInfo(final ServiceInfo changeServiceInfo) {
+        this.changeServiceInfo = changeServiceInfo;
     }
 }
