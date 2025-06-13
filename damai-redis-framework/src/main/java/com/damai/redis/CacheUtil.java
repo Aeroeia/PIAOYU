@@ -98,7 +98,6 @@ public class CacheUtil {
     /**
      * 判断 object 是否为空
      *
-     * @param object
      */
     public static boolean isEmpty(Object object) {
         if (object == null) {
@@ -108,7 +107,7 @@ public class CacheUtil {
             return StringUtil.isEmpty((String) object);
         }
         if (object instanceof Collection) {
-            return ((Collection<?>)object).size() == 0;
+            return ((Collection<?>) object).isEmpty();
         }
         return false;
     }
