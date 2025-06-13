@@ -65,7 +65,8 @@ public class ProgramShowTimeService extends ServiceImpl<ProgramShowTimeMapper, P
     }
     
     @Transactional(rollbackFor = Exception.class)
-    public void renewal(){
+    public boolean renewal(){
+        boolean flag = false;
         LambdaQueryWrapper<ProgramShowTime> programShowTimeLambdaQueryWrapper =
                 Wrappers.lambdaQuery(ProgramShowTime.class).
                         le(ProgramShowTime::getShowTime, DateUtils.addDay(DateUtils.now(), 1));
@@ -75,6 +76,7 @@ public class ProgramShowTimeService extends ServiceImpl<ProgramShowTimeMapper, P
             Date newShowTime = DateUtils.addMonth(oldShowTime, 1);
             Date nowDateTime = DateUtils.now();
             while (newShowTime.before(nowDateTime)) {
+                flag = true;
                 newShowTime = DateUtils.addMonth(newShowTime, 1);
             }
             Date newShowDayTime = DateUtils.parseDateTime(DateUtils.formatDate(newShowTime) + " 00:00:00");
@@ -88,5 +90,6 @@ public class ProgramShowTimeService extends ServiceImpl<ProgramShowTimeMapper, P
             redisCache.set(RedisKeyBuild.createRedisKey(RedisKeyManage.PROGRAM_SHOW_TIME,programShowTime.getProgramId())
                     ,updateProgramShowTime,EXPIRE_TIME, TimeUnit.DAYS);
         }
+        return flag;
     }
 }
