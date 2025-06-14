@@ -6,7 +6,7 @@ import java.io.Serializable;
 import java.util.Date;
 
 @Data
-public class ProgramV2 extends Program implements Serializable {
+public class ProgramJoinShowTime extends Program implements Serializable {
 
     private static final long serialVersionUID = 1L;
     
