@@ -9,14 +9,27 @@ import com.damai.service.composite.AbstractProgramCheckHandler;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Component
 public class ProgramOrderCreateParamCheckHandler extends AbstractProgramCheckHandler {
     @Override
     protected void execute(final ProgramOrderCreateDto programOrderCreateDto) {
         List<SeatDto> seatDtoList = programOrderCreateDto.getSeatDtoList();
+        List<Long> ticketUserIdList = programOrderCreateDto.getTicketUserIdList();
+        Map<Long, List<Long>> ticketUserIdMap = 
+                ticketUserIdList.stream().collect(Collectors.groupingBy(ticketUserId -> ticketUserId));
+        for (List<Long> value : ticketUserIdMap.values()) {
+            if (value.size() > 1) {
+                throw new DaMaiFrameException(BaseCode.TICKET_USER_ID_REPEAT);
+            }
+        }
         if (CollectionUtil.isNotEmpty(seatDtoList)) {
+            if (seatDtoList.size() != programOrderCreateDto.getTicketUserIdList().size()) {
+                throw new DaMaiFrameException(BaseCode.TICKET_USER_COUNT_UNEQUAL_SEAT_COUNT);
+            }
             for (SeatDto seatDto : seatDtoList) {
                 if (Objects.isNull(seatDto.getId())) {
                     throw new DaMaiFrameException(BaseCode.SEAT_ID_EMPTY);
