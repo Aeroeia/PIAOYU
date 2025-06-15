@@ -72,6 +72,7 @@ public class ProgramOrderService {
     
     
     public String create(ProgramOrderCreateDto programOrderCreateDto) {
+        //进行业务验证
         compositeContainer.execute(CompositeCheckType.PROGRAM_ORDER_CREATE_CHECK.getValue(),programOrderCreateDto);
         //节目id
         Long programId = programOrderCreateDto.getProgramId();
