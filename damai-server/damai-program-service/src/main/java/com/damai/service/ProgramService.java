@@ -53,6 +53,7 @@ import com.damai.threadlocal.BaseParameterHolder;
 import com.damai.util.DateUtils;
 import com.damai.util.StringUtil;
 import com.damai.vo.AreaVo;
+import com.damai.vo.ProgramHomeVo;
 import com.damai.vo.ProgramListVo;
 import com.damai.vo.ProgramVo;
 import com.damai.vo.SeatVo;
@@ -60,6 +61,7 @@ import com.damai.vo.TicketCategoryVo;
 import com.damai.vo.TicketUserVo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -128,6 +130,19 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
     @Autowired
     private ProgramEs programEs;
     
+    public String getData(String id){
+        RedisTemplate<String,String> redisTemplate = redisCache.getInstance();
+        String cachedValue = redisTemplate.opsForValue().get(id);
+        if (StringUtil.isEmpty(cachedValue)) {
+            Program program = programMapper.selectById(id);
+            if (Objects.nonNull(program)) {
+                redisTemplate.opsForValue().set(id,JSON.toJSONString(program));
+                cachedValue = JSON.toJSONString(program);
+            }
+        }
+        return cachedValue;
+    };
+    
     public Long add(ProgramAddDto programAddDto){
         Program program = new Program();
         BeanUtil.copyProperties(programAddDto,program);
@@ -140,22 +155,22 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
         setQueryTime(programSearchDto);
         return programEs.search(programSearchDto);
     }
-    public Map<String,List<ProgramListVo>> selectHomeList(ProgramListDto programPageListDto) {
+    public List<ProgramHomeVo> selectHomeList(ProgramListDto programPageListDto) {
         
-        Map<String, List<ProgramListVo>> programListVoMap = programEs.selectHomeList(programPageListDto);
-        if (CollectionUtil.isNotEmpty(programListVoMap)) {
-            return programListVoMap;
+        List<ProgramHomeVo> programHomeVoList = programEs.selectHomeList(programPageListDto);
+        if (CollectionUtil.isNotEmpty(programHomeVoList)) {
+            return programHomeVoList;
         }
         return dbSelectHomeList(programPageListDto);
     }
     
-    private Map<String,List<ProgramListVo>> dbSelectHomeList(ProgramListDto programPageListDto){
-        Map<String,List<ProgramListVo>> programListVoMap = new HashMap<>(256);
+    private List<ProgramHomeVo> dbSelectHomeList(ProgramListDto programPageListDto){
+        List<ProgramHomeVo> programHomeVoList = new ArrayList<>();
         Map<Long, String> programCategoryMap = selectProgramCategoryMap(programPageListDto.getParentProgramCategoryIds());
         
         List<Program> programList = programMapper.selectHomeList(programPageListDto);
         if (CollectionUtil.isEmpty(programList)) {
-            return programListVoMap;
+            return programHomeVoList;
         }
         
         List<Long> programIdList = programList.stream().map(Program::getId).collect(Collectors.toList());
@@ -200,9 +215,12 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
                         .map(TicketCategoryAggregate::getMinPrice).orElse(null));
                 programListVoList.add(programListVo);
             }
-            programListVoMap.put(programCategoryMap.get(key),programListVoList);
+            ProgramHomeVo programHomeVo = new ProgramHomeVo();
+            programHomeVo.setCategoryName(programCategoryMap.get(key));
+            programHomeVo.setProgramListVoList(programListVoList);
+            programHomeVoList.add(programHomeVo);
         }
-        return programListVoMap;
+        return programHomeVoList;
     }
     
     public void setQueryTime(ProgramPageListDto programPageListDto){

@@ -8,6 +8,7 @@ import com.damai.dto.ProgramPageListDto;
 import com.damai.dto.ProgramSearchDto;
 import com.damai.page.PageVo;
 import com.damai.service.ProgramService;
+import com.damai.vo.ProgramHomeVo;
 import com.damai.vo.ProgramListVo;
 import com.damai.vo.ProgramVo;
 import io.swagger.annotations.Api;
@@ -20,7 +21,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import javax.validation.Valid;
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/program")
@@ -44,7 +44,7 @@ public class ProgramController {
     
     @ApiOperation(value = "查询主页列表")
     @PostMapping(value = "/home/list")
-    public ApiResponse<Map<String,List<ProgramListVo>>> selectHomeList(@Valid @RequestBody ProgramListDto programPageListDto) {
+    public ApiResponse<List<ProgramHomeVo>> selectHomeList(@Valid @RequestBody ProgramListDto programPageListDto) {
         return ApiResponse.ok(programService.selectHomeList(programPageListDto));
     }
     

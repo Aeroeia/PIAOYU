@@ -86,11 +86,18 @@
             <artifactId>damai-service-component</artifactId>
             <version>${revision}</version>
         </dependency>
+        <!-- nacos start -->
         <dependency>
-            <groupId>com.example</groupId>
-            <artifactId>damai-service-lossless</artifactId>
-            <version>${revision}</version>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
         </dependency>
+        <!-- spring-cloud-starter-alibaba-nacos-discovery源码中nacos-common optional为true,所以这里要将common引入 -->
+        <dependency>
+            <groupId>com.alibaba.nacos</groupId>
+            <artifactId>nacos-common</artifactId>
+            <version>${nacos.version}</version>
+        </dependency>
+        <!-- nacos end -->
         <dependency>
             <groupId>com.example</groupId>
             <artifactId>damai-id-generator-framework</artifactId>
@@ -117,10 +124,6 @@
             <groupId>com.example</groupId>
             <artifactId>damai-service-hystrix</artifactId>
             <version>${revision}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.alibaba.cloud</groupId>
-            <artifactId>spring-cloud-starter-alibaba-nacos-config</artifactId>
         </dependency>
         <dependency>
             <groupId>mysql</groupId>
@@ -161,6 +164,19 @@
             <artifactId>snakeyaml</artifactId>
             <version>${snakeyaml.version}</version>
         </dependency>
+        <dependency>
+            <groupId>com.example</groupId>
+            <artifactId>damai-service-gray-transition-webmvc-framework</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-sentinel</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.alibaba.csp</groupId>
+            <artifactId>sentinel-datasource-nacos</artifactId>
+        </dependency>
     </dependencies>
 
     <build>
@@ -172,7 +188,7 @@
                 <configuration>
                     <mainClass>com.damai.ProgramApplication</mainClass>
                     <!-- 如果以jar包启动需要将此配置去掉 -->
-                    <skip>true</skip>
+                    <!--<skip>true</skip>-->
                 </configuration>
                 <executions>
                     <execution>
