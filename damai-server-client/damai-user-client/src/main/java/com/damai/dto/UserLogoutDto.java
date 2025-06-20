@@ -5,7 +5,6 @@ import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 
 import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.NotNull;
 
 @Data
 @ApiModel(value="UserLoginDto", description ="用户退出登录")
@@ -15,7 +14,7 @@ public class UserLogoutDto {
     @NotBlank
     private String code;
     
-    @ApiModelProperty(name ="id", dataType ="Long", value ="用户id", required =true)
-    @NotNull
-    private Long id;
+    @ApiModelProperty(name ="id", dataType ="Long", value ="token", required =true)
+    @NotBlank
+    private String token;
 }
