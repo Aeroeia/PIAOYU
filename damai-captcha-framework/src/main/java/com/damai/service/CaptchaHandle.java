@@ -31,4 +31,8 @@ public class CaptchaHandle {
         captchaVO.setBrowserInfo(RemoteUtil.getRemoteId(request));
         return captchaService.check(captchaVO);
     }
+    
+    public ResponseModel verification(CaptchaVO captchaVO) {
+        return captchaService.verification(captchaVO);
+    }
 }
