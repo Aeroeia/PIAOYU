@@ -5,6 +5,7 @@ import com.damai.data.BaseTableData;
 import lombok.Data;
 
 import java.io.Serializable;
+import java.util.Date;
 
 @Data
 @TableName("d_program_group")
@@ -21,4 +22,9 @@ public class ProgramGroup extends BaseTableData implements Serializable {
      * 节目json
      */
     private String programJson;
+    
+    /**
+     * 最近的节目演出时间
+     * */
+    private Date recentShowTime;
 }
