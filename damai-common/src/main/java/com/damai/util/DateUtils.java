@@ -752,7 +752,7 @@ public class DateUtils {
             return -1;
         }
         long t1 = getDateTimeNo(date1);
-        long t2 = getDateTimeNo(date1);
+        long t2 = getDateTimeNo(date2);
         // 相差秒数
         return Math.abs(t1 - t2);
     }
