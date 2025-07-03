@@ -62,6 +62,7 @@ public class ProgramController {
         return ApiResponse.ok(programService.detail(programGetDto));
     }
     
+    @ApiOperation(value = "节目失效(根据id)")
     @PostMapping(value = "/invalid")
     public ApiResponse<Boolean> invalid(@Valid @RequestBody ProgramInvalidDto programInvalidDto) {
         return ApiResponse.ok(programService.invalid(programInvalidDto));
