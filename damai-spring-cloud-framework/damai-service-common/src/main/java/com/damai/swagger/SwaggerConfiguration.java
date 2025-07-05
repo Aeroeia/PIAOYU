@@ -46,7 +46,7 @@ public class SwaggerConfiguration {
                 .title("swagger文档")
                 .description("<div style='font-size:14px;color:red;'>前端开发人员使用</div>")
                 .termsOfServiceUrl("http://www.group.com/")
-                .contact(new Contact("阿宽不是程序员", "", ""))
+                .contact(new Contact("阿星不是程序员", "", ""))
                 .version("1.0")
                 .build();
     }
