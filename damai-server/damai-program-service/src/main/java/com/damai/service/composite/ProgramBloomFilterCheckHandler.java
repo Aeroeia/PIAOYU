@@ -10,7 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Component
-public class ProgramDetailCheckHandler extends AbstractComposite<ProgramGetDto> {
+public class ProgramBloomFilterCheckHandler extends AbstractComposite<ProgramGetDto> {
     
     @Autowired
     private BloomFilterHandler bloomFilterHandler;
