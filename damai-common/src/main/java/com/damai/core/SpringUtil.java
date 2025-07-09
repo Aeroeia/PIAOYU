@@ -3,8 +3,8 @@ package com.damai.core;
 import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.context.ConfigurableApplicationContext;
 
-import static com.damai.constant.Constant.DEFAULT_SPRING_INJECT_PREFIX_DISTINCTION_NAME;
-import static com.damai.constant.Constant.SPRING_INJECT_PREFIX_DISTINCTION_NAME;
+import static com.damai.constant.Constant.DEFAULT_PREFIX_DISTINCTION_NAME;
+import static com.damai.constant.Constant.PREFIX_DISTINCTION_NAME;
 
 
 public class SpringUtil implements ApplicationContextInitializer<ConfigurableApplicationContext> {
@@ -13,8 +13,8 @@ public class SpringUtil implements ApplicationContextInitializer<ConfigurableApp
     
     
     public static String getPrefixDistinctionName(){
-        return configurableApplicationContext.getEnvironment().getProperty(SPRING_INJECT_PREFIX_DISTINCTION_NAME,
-                DEFAULT_SPRING_INJECT_PREFIX_DISTINCTION_NAME);
+        return configurableApplicationContext.getEnvironment().getProperty(PREFIX_DISTINCTION_NAME,
+                DEFAULT_PREFIX_DISTINCTION_NAME);
     }
     
     @Override
