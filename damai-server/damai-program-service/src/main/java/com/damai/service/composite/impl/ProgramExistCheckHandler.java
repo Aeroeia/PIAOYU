@@ -13,7 +13,9 @@ import com.damai.vo.ProgramVo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 @Component
 public class ProgramExistCheckHandler extends AbstractProgramCheckHandler {
@@ -31,6 +33,13 @@ public class ProgramExistCheckHandler extends AbstractProgramCheckHandler {
             if (Objects.nonNull(programOrderCreateDto.getSeatDtoList())) {
                 throw new DaMaiFrameException(BaseCode.PROGRAM_NOT_ALLOW_CHOOSE_SEAT);
             }
+        }
+        Integer seatCount = Optional.ofNullable(programOrderCreateDto.getSeatDtoList()).map(List::size).orElse(0);
+        
+        Integer ticketCount = Optional.ofNullable(programOrderCreateDto.getTicketCount()).orElse(0);
+        
+        if (seatCount > programVo.getPerOrderLimitPurchaseCount() || ticketCount > programVo.getPerOrderLimitPurchaseCount()) {
+            throw new DaMaiFrameException(BaseCode.PER_ORDER_PURCHASE_COUNT_OVER_LIMIT);   
         }
     }
     
