@@ -9,7 +9,7 @@ import javax.validation.constraints.NotNull;
 import java.io.Serializable;
 
 @Data
-@ApiModel(value="TicketUserVo", description ="购票人")
+@ApiModel(value="TicketUserDto", description ="购票人")
 public class TicketUserDto implements Serializable {
 
     private static final long serialVersionUID = 1L;
