@@ -77,6 +77,7 @@ import static com.damai.core.DistributedLockConstants.ORDER_CANCEL_LOCK;
 import static com.damai.core.DistributedLockConstants.ORDER_PAY_CHECK;
 import static com.damai.core.RepeatExecuteLimitConstants.CANCEL_PROGRAM_ORDER;
 import static com.damai.core.RepeatExecuteLimitConstants.CREATE_PROGRAM_ORDER_MQ;
+import static com.damai.core.RepeatExecuteLimitConstants.PROGRAM_CACHE_REVERSE_MQ;
 
 @Slf4j
 @Service
@@ -289,7 +290,9 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
             updateOrder.setCancelOrderTime(DateUtils.now());
             updateOrderTicketUser.setCancelOrderTime(DateUtils.now());
         }
-        int updateOrderResult = orderMapper.updateById(updateOrder);
+        LambdaUpdateWrapper<Order> orderLambdaUpdateWrapper =
+                Wrappers.lambdaUpdate(Order.class).eq(Order::getOrderNumber, order.getOrderNumber());
+        int updateOrderResult = orderMapper.update(updateOrder,orderLambdaUpdateWrapper);
         
         LambdaUpdateWrapper<OrderTicketUser> orderTicketUserLambdaUpdateWrapper =
                 Wrappers.lambdaUpdate(OrderTicketUser.class).eq(OrderTicketUser::getOrderNumber, order.getOrderNumber());
@@ -488,7 +491,12 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
     
     @RepeatExecuteLimit(name = CREATE_PROGRAM_ORDER_MQ,keys = {"#orderCreateDto.orderNumber"})
     @Transactional(rollbackFor = Exception.class)
-    public String createByMq(OrderCreateDto orderCreateDto){
+    public String createMq(OrderCreateDto orderCreateDto){
         return create(orderCreateDto);
+    }
+    
+    @RepeatExecuteLimit(name = PROGRAM_CACHE_REVERSE_MQ,keys = {"#programId"})
+    public void updateProgramRelatedDataMq(Long programId,List<String> seatIdList,OrderStatus orderStatus){
+        updateProgramRelatedData(programId,seatIdList,orderStatus);
     }
 }
