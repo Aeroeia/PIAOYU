@@ -1,12 +1,12 @@
 package com.damai.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.damai.dto.TicketCategoryCountDto;
 import com.damai.entity.TicketCategory;
 import com.damai.entity.TicketCategoryAggregate;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
-import java.util.Map;
 
 public interface TicketCategoryMapper extends BaseMapper<TicketCategory> {
     
@@ -27,8 +27,8 @@ public interface TicketCategoryMapper extends BaseMapper<TicketCategory> {
     
     /**
      * 批量更新数量
-     * @param ticketCategoryCountMap 参数
+     * @param ticketCategoryCountDtoList 参数
      * @return 结果
      * */
-    int batchUpdateRemainNumber(@Param("ticketCategoryCountMap") Map<Long, Long> ticketCategoryCountMap);
+    int batchUpdateRemainNumber(@Param("ticketCategoryCountDtoList") List<TicketCategoryCountDto> ticketCategoryCountDtoList);
 }

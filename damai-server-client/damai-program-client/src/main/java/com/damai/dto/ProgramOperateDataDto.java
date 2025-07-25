@@ -6,7 +6,6 @@ import lombok.Data;
 
 import javax.validation.constraints.NotNull;
 import java.util.List;
-import java.util.Map;
 
 @Data
 @ApiModel(value="ProgramOperateDataDto", description ="节目数据操作")
@@ -16,10 +15,9 @@ public class ProgramOperateDataDto {
     @NotNull
     private Long programId;
     
-    @ApiModelProperty(name ="ticketCategoryCountMap", dataType ="Map<Long,Long>", 
-            value ="节目票档map key:票档id value:票档数量",required = true)
+    @ApiModelProperty(name ="ticketCategoryCountMap", dataType ="List<TicketCategoryCountDto>",required = true)
     @NotNull
-    private Map<Long,Long> ticketCategoryCountMap;
+    private List<TicketCategoryCountDto> ticketCategoryCountDtoList;
     
     @ApiModelProperty(name ="seatIdList", dataType ="List<Long>", value ="座位id集合",required = true)
     @NotNull

@@ -28,6 +28,7 @@ import com.damai.dto.ProgramPageListDto;
 import com.damai.dto.ProgramRecommendListDto;
 import com.damai.dto.ProgramResetExecuteDto;
 import com.damai.dto.ProgramSearchDto;
+import com.damai.dto.TicketCategoryCountDto;
 import com.damai.dto.TicketUserListDto;
 import com.damai.entity.Program;
 import com.damai.entity.ProgramCategory;
@@ -543,7 +544,7 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
     @RepeatExecuteLimit(name = CANCEL_PROGRAM_ORDER,keys = {"#programOperateDataDto.programId"})
     @Transactional(rollbackFor = Exception.class)
     public void operateProgramData(ProgramOperateDataDto programOperateDataDto){
-        Map<Long, Long> ticketCategoryCountMap = programOperateDataDto.getTicketCategoryCountMap();
+        List<TicketCategoryCountDto> ticketCategoryCountDtoList = programOperateDataDto.getTicketCategoryCountDtoList();
         List<Long> seatIdList = programOperateDataDto.getSeatIdList();
         LambdaQueryWrapper<Seat> seatLambdaQueryWrapper = 
                 Wrappers.lambdaQuery(Seat.class).in(Seat::getId, seatIdList);
@@ -563,8 +564,8 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
         seatMapper.update(updateSeat,seatLambdaUpdateWrapper);
         
         int updateRemainNumberCount = 
-                ticketCategoryMapper.batchUpdateRemainNumber(ticketCategoryCountMap);
-        if (updateRemainNumberCount != ticketCategoryCountMap.size()) {
+                ticketCategoryMapper.batchUpdateRemainNumber(ticketCategoryCountDtoList);
+        if (updateRemainNumberCount != ticketCategoryCountDtoList.size()) {
             throw new DaMaiFrameException(BaseCode.UPDATE_TICKET_CATEGORY_COUNT_NOT_CORRECT);
         }
     }
