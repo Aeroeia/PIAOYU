@@ -12,6 +12,8 @@ import org.springframework.stereotype.Component;
 
 import java.util.Optional;
 
+import static com.damai.constant.Constant.SPRING_INJECT_PREFIX_DISTINCTION_NAME;
+
 @Slf4j
 @AllArgsConstructor
 @Component
@@ -20,7 +22,7 @@ public class ApiDataMessageConsumer {
     @Autowired
     private ApiDataService apiDataService;
     
-    @KafkaListener(topics = {"${spring.kafka.topic:save_api_data}"})
+    @KafkaListener(topics = {SPRING_INJECT_PREFIX_DISTINCTION_NAME+"-"+"${spring.kafka.topic:save_api_data}"})
     public void consumerOrderMessage(ConsumerRecord<String,String> consumerRecord){
         try {
             Optional.ofNullable(consumerRecord.value()).map(String::valueOf).ifPresent(value -> {

@@ -16,6 +16,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static com.damai.constant.Constant.SPRING_INJECT_PREFIX_DISTINCTION_NAME;
+
 @Slf4j
 @AllArgsConstructor
 @Component
@@ -26,7 +28,7 @@ public class CreateOrderConsumer {
     
     public static Long MESSAGE_DELAY_TIME = 5000L;
     
-    @KafkaListener(topics = {"${spring.kafka.topic:create_order}"})
+    @KafkaListener(topics = {SPRING_INJECT_PREFIX_DISTINCTION_NAME+"-"+"${spring.kafka.topic:create_order}"})
     public void consumerOrderMessage(ConsumerRecord<String,String> consumerRecord){
         try {
             Optional.ofNullable(consumerRecord.value()).map(String::valueOf).ifPresent(value -> {
