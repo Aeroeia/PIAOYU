@@ -15,7 +15,7 @@ import java.nio.charset.StandardCharsets;
 public class CustomizeRequestWrapper extends HttpServletRequestWrapper {
     
     private final String requestBody;
-    
+        
     
     public CustomizeRequestWrapper(HttpServletRequest request) throws IOException {
         super(request);
@@ -54,4 +54,7 @@ public class CustomizeRequestWrapper extends HttpServletRequestWrapper {
         return new BufferedReader(new InputStreamReader(this.getInputStream()));
     }
     
+    public String getRequestBody() {
+        return this.requestBody;
+    }
 }

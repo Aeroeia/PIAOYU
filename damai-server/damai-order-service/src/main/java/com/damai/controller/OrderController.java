@@ -19,12 +19,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/order")
@@ -54,8 +53,8 @@ public class OrderController {
     
     @ApiOperation(value = "支付宝支付后回调通知")
     @PostMapping(value = "/alipay/notify")
-    public String alipayNotify(@RequestParam Map<String, String> params) {
-        return orderService.alipayNotify(params,params.get("out_trade_no"));
+    public String alipayNotify(HttpServletRequest request) {
+        return orderService.alipayNotify(request);
     }
     
     @ApiOperation(value = "订单取消")
