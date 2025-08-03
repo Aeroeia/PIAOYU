@@ -3,8 +3,6 @@ package com.damai.vo;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
-
-import java.util.Date;
 @Data
 @ApiModel(value="GetChannelDataVo", description ="渠道数据")
 public class GetChannelDataVo {
@@ -20,9 +18,6 @@ public class GetChannelDataVo {
     
     @ApiModelProperty(name ="introduce", dataType ="String", value ="介绍", required =true)
     private String introduce;
-    
-    @ApiModelProperty(name ="createTime", dataType ="Date", value ="创建时间", required =true)
-    private Date createTime;
     
     @ApiModelProperty(name ="status", dataType ="Integer", value ="装填 1:正常 0:禁用", required =true)
     private Integer status;
