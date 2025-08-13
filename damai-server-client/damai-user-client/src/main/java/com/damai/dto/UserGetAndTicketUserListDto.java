@@ -4,7 +4,7 @@ import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
 @Data
 @ApiModel(value="UserGetAndTicketUserListDto", description ="查询用户以及用户下购票人集合入参")
 public class UserGetAndTicketUserListDto {

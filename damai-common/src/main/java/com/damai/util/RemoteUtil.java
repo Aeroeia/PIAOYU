@@ -2,7 +2,7 @@ package com.damai.util;
 
 import org.apache.commons.lang.StringUtils;
 
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 
 public class RemoteUtil {
     
