@@ -1,21 +1,17 @@
 package com.damai.dto;
 
 
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
-import jakarta.validation.constraints.NotNull;
-
 @Data
-@ApiModel(value="BasePageDto", description ="分页")
 public class BasePageDto {
     
-    @ApiModelProperty(name ="pageNumber", dataType ="Integer", value ="页码",required = true)
+    
     @NotNull
     private Integer pageNumber;
     
-    @ApiModelProperty(name ="pageSize", dataType ="Integer", value ="页大小",required = true)
+    
     @NotNull
     private Integer pageSize;
 }

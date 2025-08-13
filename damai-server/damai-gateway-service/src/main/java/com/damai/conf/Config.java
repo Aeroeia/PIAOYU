@@ -6,8 +6,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.http.HttpMessageConverters;
 import org.springframework.boot.web.reactive.error.ErrorWebExceptionHandler;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
+import org.springframework.http.codec.ServerCodecConfigurer;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.cors.CorsConfiguration;
@@ -17,7 +17,7 @@ import org.springframework.web.util.pattern.PathPatternParser;
 
 import java.util.stream.Collectors;
 
-@Configuration
+//@EnableConfigurationProperties(ServerProperties.class)
 public class Config {
     
     @Bean
@@ -52,4 +52,16 @@ public class Config {
         source.registerCorsConfiguration("/**", config);
         return new CorsWebFilter(source);
     }
+    
+    @Bean
+    public ServerCodecConfigurer serverCodecConfigurer() {
+        return ServerCodecConfigurer.create();
+    }
+
+//    @Bean
+//    public GatewaySentinelConfiguration gatewaySentinelConfiguration(
+//            ObjectProvider<List<ViewResolver>> viewResolversProvider,
+//            ServerCodecConfigurer serverCodecConfigurer){
+//        return new GatewaySentinelConfiguration(viewResolversProvider,serverCodecConfigurer);
+//    }
 }

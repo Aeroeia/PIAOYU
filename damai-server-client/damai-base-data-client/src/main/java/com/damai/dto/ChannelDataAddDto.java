@@ -1,44 +1,43 @@
 package com.damai.dto;
 
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.media.Schema.RequiredMode;
+import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
-import jakarta.validation.constraints.NotBlank;
-
 @Data
-@ApiModel(value="ChannelDataAddDto", description ="渠道数据")
+@Schema(title="ChannelDataAddDto", description ="渠道数据")
 public class ChannelDataAddDto {
     
-    @ApiModelProperty(name ="name", dataType ="String", value ="名称", required =true)
+    @Schema(name ="name", type ="String", description ="名称",requiredMode= RequiredMode.REQUIRED)
     @NotBlank
     private String name;
     
-    @ApiModelProperty(name ="code", dataType ="String", value ="code码", required =true)
+    @Schema(name ="code", type ="String", description ="code码", requiredMode= RequiredMode.REQUIRED)
     @NotBlank
     private String code;
     
-    @ApiModelProperty(name ="introduce", dataType ="String", value ="介绍", required =true)
+    @Schema(name ="introduce", type ="String", description ="介绍", requiredMode= RequiredMode.REQUIRED)
     private String introduce;
     
-    @ApiModelProperty(name ="signPublicKey", dataType ="String", value ="rsa签名公钥", required =true)
+    @Schema(name ="signPublicKey", type ="String", description ="rsa签名公钥", requiredMode= RequiredMode.REQUIRED)
     @NotBlank
     private String signPublicKey;
     
-    @ApiModelProperty(name ="signSecretKey", dataType ="String", value ="rsa签名私钥", required =true)
+    @Schema(name ="signSecretKey", type ="String", description ="rsa签名私钥", requiredMode= RequiredMode.REQUIRED)
     @NotBlank
     private String signSecretKey;
     
-    @ApiModelProperty(name ="aesKey", dataType ="String", value ="aes私钥")
+    @Schema(name ="aesKey", type ="String", description ="aes私钥")
     private String aesKey;
     
-    @ApiModelProperty(name ="dataPublicKey", dataType ="String", value ="rsa参数公钥")
+    @Schema(name ="dataPublicKey", type ="String", description ="rsa参数公钥")
     private String dataPublicKey;
     
-    @ApiModelProperty(name ="dataSecretKey", dataType ="String", value ="rsa参数私钥")
+    @Schema(name ="dataSecretKey", type ="String", description ="rsa参数私钥")
     private String dataSecretKey;
     
-    @ApiModelProperty(name ="tokenSecret", dataType ="String", value ="token秘钥", required =true)
+    @Schema(name ="tokenSecret", type ="String", description ="token秘钥", requiredMode= RequiredMode.REQUIRED)
     @NotBlank
     private String tokenSecret;;
     

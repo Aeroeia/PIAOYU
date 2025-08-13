@@ -1,14 +1,13 @@
 package com.damai.config;
 
 
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
-@ConditionalOnProperty("spring.redis.host")
 public class RedisFrameWorkAutoConfig {
 
     @Bean("redisToolRedisTemplate")
@@ -19,6 +18,7 @@ public class RedisFrameWorkAutoConfig {
         return redisTemplate;
     }
 
+    @Primary
     @Bean("redisToolStringRedisTemplate")
     public StringRedisTemplate stringRedisTemplate(RedisConnectionFactory redisConnectionFactory) {
         StringRedisTemplate myStringRedisTemplate = new StringRedisTemplate();

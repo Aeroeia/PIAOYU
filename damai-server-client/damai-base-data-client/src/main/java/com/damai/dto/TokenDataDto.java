@@ -1,20 +1,19 @@
 package com.damai.dto;
 
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.media.Schema.RequiredMode;
+import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
-import jakarta.validation.constraints.NotBlank;
-
 @Data
-@ApiModel(value="TokenDataDto", description ="token数据")
+@Schema(title="TokenDataDto", description ="token数据")
 public class TokenDataDto {
     
-    @ApiModelProperty(name ="name", dataType ="String", value ="名字", required =true)
+    @Schema(name ="name", type ="String", description ="名字",requiredMode= RequiredMode.REQUIRED)
     @NotBlank
     private String name;
     
-    @ApiModelProperty(name ="secret", dataType ="String", value ="秘钥", required =true)
+    @Schema(name ="secret", type ="String", description ="秘钥",requiredMode= RequiredMode.REQUIRED)
     @NotBlank
     private String secret;
 }

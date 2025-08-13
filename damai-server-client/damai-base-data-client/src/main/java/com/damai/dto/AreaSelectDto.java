@@ -1,17 +1,17 @@
 package com.damai.dto;
 
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.media.Schema.RequiredMode;
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
-import jakarta.validation.constraints.NotNull;
 import java.util.List;
 
 @Data
-@ApiModel(value="AreaSelectDto", description ="AreaSelectDto")
+@Schema(title="AreaSelectDto", description ="AreaSelectDto")
 public class AreaSelectDto {
     
-    @ApiModelProperty(name ="idList", dataType ="List<Long>", value ="id集合", required =true)
+    @Schema(name ="idList", type ="List<Long>",description = "id集合",requiredMode= RequiredMode.REQUIRED)
     @NotNull
     private List<Long> idList;
 }
