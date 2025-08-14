@@ -1,20 +1,19 @@
 package com.damai.dto;
 
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.media.Schema.RequiredMode;
+import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
-import jakarta.validation.constraints.NotBlank;
-
 @Data
-@ApiModel(value="UserLogoutDto", description ="用户退出登录")
+@Schema(title="UserLogoutDto", description ="用户退出登录")
 public class UserLogoutDto {
     
-    @ApiModelProperty(name ="code", dataType ="String", value ="渠道code 0001:pc网站", required = true)
+    @Schema(name ="code", type ="String", description ="渠道code 0001:pc网站", requiredMode= RequiredMode.REQUIRED)
     @NotBlank
     private String code;
     
-    @ApiModelProperty(name ="id", dataType ="Long", value ="token", required =true)
+    @Schema(name ="id", type ="Long", description ="token", requiredMode= RequiredMode.REQUIRED)
     @NotBlank
     private String token;
 }

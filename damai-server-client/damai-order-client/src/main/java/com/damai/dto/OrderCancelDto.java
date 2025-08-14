@@ -1,16 +1,15 @@
 package com.damai.dto;
 
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.media.Schema.RequiredMode;
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
-import jakarta.validation.constraints.NotNull;
-
 @Data
-@ApiModel(value="OrderCancelDto", description ="订单取消")
+@Schema(title="OrderCancelDto", description ="订单取消")
 public class OrderCancelDto {
     
-    @ApiModelProperty(name ="orderNumber", dataType ="Long", value ="订单编号", required =true)
+    @Schema(name ="orderNumber", type ="Long", description ="订单编号", requiredMode= RequiredMode.REQUIRED)
     @NotNull
     private Long orderNumber;
     

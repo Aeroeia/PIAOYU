@@ -1,16 +1,15 @@
 package com.damai.dto;
 
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.media.Schema.RequiredMode;
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
-import jakarta.validation.constraints.NotNull;
-
 @Data
-@ApiModel(value="RuleGetDto", description ="普通规则查询")
+@Schema(title="RuleGetDto", description ="普通规则查询")
 public class RuleGetDto {
     
-    @ApiModelProperty(name ="id", dataType ="String", value ="普通规则id", required =true)
+    @Schema(name ="id", type ="String", description ="普通规则id", requiredMode= RequiredMode.REQUIRED)
     @NotNull
     private Long id;
 }

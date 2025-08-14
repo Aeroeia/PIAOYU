@@ -1,16 +1,16 @@
 package com.damai.dto;
 
-import io.swagger.annotations.ApiModelProperty;
-import lombok.Data;
-
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.media.Schema.RequiredMode;
 import jakarta.validation.constraints.NotBlank;
+import lombok.Data;
 
 @Data
 public class TestSendDto {
     
     private Long count;
     
-    @ApiModelProperty(name ="message", dataType ="String", value ="消息",required = true)
+    @Schema(name ="message", type ="String", description ="消息",requiredMode= RequiredMode.REQUIRED)
     @NotBlank
     private String message;
     

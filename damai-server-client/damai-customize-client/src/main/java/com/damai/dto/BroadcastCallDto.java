@@ -1,20 +1,19 @@
 package com.damai.dto;
 
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.media.Schema.RequiredMode;
+import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
-import jakarta.validation.constraints.NotBlank;
-
 @Data
-@ApiModel(value="BroadcastCallDto", description ="广播调用")
+@Schema(title="BroadcastCallDto", description ="广播调用")
 public class BroadcastCallDto {
     
-    @ApiModelProperty(name ="serviceName", dataType ="String", value ="服务名", required =true)
+    @Schema(name ="serviceName", type ="String", description ="服务名", requiredMode= RequiredMode.REQUIRED)
     @NotBlank
     private String serviceName;
     
-    @ApiModelProperty(name ="requestBody", dataType ="String", value ="请求体", required =true)
+    @Schema(name ="requestBody", type ="String", description ="请求体", requiredMode= RequiredMode.REQUIRED)
     @NotBlank
     private String requestBody;
 }

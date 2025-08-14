@@ -1,14 +1,14 @@
 package com.damai.dto;
 
-import io.swagger.annotations.ApiModelProperty;
-import lombok.Data;
-
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.media.Schema.RequiredMode;
 import jakarta.validation.constraints.NotNull;
+import lombok.Data;
 
 @Data
 public class TestDto {
     
-    @ApiModelProperty(name ="id", dataType ="Long", value ="id",required = true)
+    @Schema(name ="id", type ="Long", description ="id",requiredMode= RequiredMode.REQUIRED)
     @NotNull
     private Long id;
 }

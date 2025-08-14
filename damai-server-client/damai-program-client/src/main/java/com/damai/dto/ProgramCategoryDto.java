@@ -1,16 +1,15 @@
 package com.damai.dto;
 
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.media.Schema.RequiredMode;
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
-import jakarta.validation.constraints.NotNull;
-
 @Data
-@ApiModel(value="ProgramCategoryDto", description ="节目类型")
+@Schema(title="ProgramCategoryDto", description ="节目类型")
 public class ProgramCategoryDto {
     
-    @ApiModelProperty(name ="type", dataType ="Integer", value ="1:一级种类 2:二级种类", required =true)
+    @Schema(name ="type", type ="Integer", description ="1:一级种类 2:二级种类", requiredMode= RequiredMode.REQUIRED)
     @NotNull
     private Integer type;
 }

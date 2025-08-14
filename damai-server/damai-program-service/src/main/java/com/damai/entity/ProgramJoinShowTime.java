@@ -2,12 +2,14 @@ package com.damai.entity;
 
 import lombok.Data;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.Date;
 
 @Data
 public class ProgramJoinShowTime extends Program implements Serializable {
 
+    @Serial
     private static final long serialVersionUID = 1L;
     
     /**

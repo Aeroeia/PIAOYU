@@ -10,49 +10,48 @@ import com.damai.service.PayService;
 import com.damai.vo.NotifyVo;
 import com.damai.vo.PayBillVo;
 import com.damai.vo.TradeCheckVo;
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiOperation;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import jakarta.validation.Valid;
-
 @RestController
 @RequestMapping("/pay")
-@Api(tags = "pay", value = "支付")
+@Tag(name = "pay", description = "支付")
 public class PayController {
     
     @Autowired
     private PayService payService;
     
-    @ApiOperation(value = "支付")
+    @Operation(summary  = "支付")
     @PostMapping(value = "/common/pay")
     public ApiResponse<String> commonPay(@Valid @RequestBody PayDto payDto) {
         return ApiResponse.ok(payService.commonPay(payDto));
     }
     
-    @ApiOperation(value = "支付后回到通知")
+    @Operation(summary  = "支付后回到通知")
     @PostMapping(value = "/notify")
     public ApiResponse<NotifyVo> notify(@Valid @RequestBody NotifyDto notifyDto) {
         return ApiResponse.ok(payService.notify(notifyDto));
     }
     
-    @ApiOperation(value = "支付状态查询")
+    @Operation(summary  = "支付状态查询")
     @PostMapping(value = "/trade/check")
     public ApiResponse<TradeCheckVo> tradeCheck(@Valid @RequestBody TradeCheckDto tradeCheckDto) {
         return ApiResponse.ok(payService.tradeCheck(tradeCheckDto));
     }
     
-    @ApiOperation(value = "退款")
+    @Operation(summary  = "退款")
     @PostMapping(value = "/refund")
     public ApiResponse<String> refund(@Valid @RequestBody RefundDto refundDto) {
         return ApiResponse.ok(payService.refund(refundDto));
     }
     
-    @ApiOperation(value = "账单详情查询")
+    @Operation(summary  = "账单详情查询")
     @PostMapping(value = "/detail")
     public ApiResponse<PayBillVo> detail(@Valid @RequestBody PayBillDto payBillDto) {
         return ApiResponse.ok(payService.detail(payBillDto));

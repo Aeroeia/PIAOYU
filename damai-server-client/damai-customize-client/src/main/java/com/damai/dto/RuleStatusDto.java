@@ -1,20 +1,19 @@
 package com.damai.dto;
 
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.media.Schema.RequiredMode;
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
-import jakarta.validation.constraints.NotNull;
-
 @Data
-@ApiModel(value="RuleStatusDto", description ="普通规则状态修改")
+@Schema(title="RuleStatusDto", description ="普通规则状态修改")
 public class RuleStatusDto {
     
-    @ApiModelProperty(name ="id", dataType ="String", value ="普通规则id", required =true)
+    @Schema(name ="id", type ="String", description ="普通规则id", requiredMode= RequiredMode.REQUIRED)
     @NotNull
     private Long id;
     
-    @ApiModelProperty(name ="status", dataType ="Integer", value ="状态 1生效 0禁用", required =true)
+    @Schema(name ="status", type ="Integer", description ="状态 1生效 0禁用", requiredMode= RequiredMode.REQUIRED)
     @NotNull
     private Integer status;
 }

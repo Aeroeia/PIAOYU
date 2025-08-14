@@ -1,13 +1,12 @@
 package com.damai.vo;
 
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 @Data
-@ApiModel(value="AccountOrderCountVo", description ="账户下订单数量")
+@Schema(title="AccountOrderCountVo", description ="账户下订单数量")
 public class AccountOrderCountVo {
     
-    @ApiModelProperty(name ="count", dataType ="Integer", value ="账户下的订单数量")
+    @Schema(name ="count", type ="Integer", description ="账户下的订单数量")
     private Integer count;
 }

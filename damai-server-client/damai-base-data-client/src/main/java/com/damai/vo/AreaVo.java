@@ -3,12 +3,14 @@ package com.damai.vo;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
+import java.io.Serial;
 import java.io.Serializable;
 
 @Data
 @Schema(title="AreaVo", description ="区域数据")
 public class AreaVo implements Serializable {
 
+    @Serial
     private static final long serialVersionUID = 1L;
 
     /**

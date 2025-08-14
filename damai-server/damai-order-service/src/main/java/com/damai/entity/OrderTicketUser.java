@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import com.damai.data.BaseTableData;
 import lombok.Data;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.Date;
@@ -12,6 +13,7 @@ import java.util.Date;
 @TableName("d_order_ticket_user")
 public class OrderTicketUser extends BaseTableData implements Serializable {
 
+    @Serial
     private static final long serialVersionUID = 1L;
 
     /**

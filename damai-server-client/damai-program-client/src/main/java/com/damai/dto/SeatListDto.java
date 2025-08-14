@@ -1,16 +1,15 @@
 package com.damai.dto;
 
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.media.Schema.RequiredMode;
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
-import jakarta.validation.constraints.NotNull;
-
 @Data
-@ApiModel(value="SeatListDto", description ="节目座位列表")
+@Schema(title="SeatListDto", description ="节目座位列表")
 public class SeatListDto {
     
-    @ApiModelProperty(name ="programId", dataType ="Long", value ="节目表id",required = true)
+    @Schema(name ="programId", type ="Long", description ="节目表id",requiredMode= RequiredMode.REQUIRED)
     @NotNull
     private Long programId;
 }

@@ -1,16 +1,15 @@
 package com.damai.dto;
 
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.media.Schema.RequiredMode;
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
-import jakarta.validation.constraints.NotNull;
-
 @Data
-@ApiModel(value="ParentProgramCategoryDto", description ="父节目类型")
+@Schema(title="ParentProgramCategoryDto", description ="父节目类型")
 public class ParentProgramCategoryDto {
     
-    @ApiModelProperty(name ="parentProgramCategoryId", required = true, dataType ="Long", value ="父节目类型id")
+    @Schema(name ="parentProgramCategoryId", requiredMode= RequiredMode.REQUIRED, type ="Long", description ="父节目类型id")
     @NotNull
     private Long parentProgramCategoryId;
 }

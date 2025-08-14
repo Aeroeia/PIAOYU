@@ -6,12 +6,14 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import com.damai.data.BaseTableData;
 import lombok.Data;
 
+import java.io.Serial;
 import java.io.Serializable;
 
 @Data
 @TableName("d_area")
 public class Area extends BaseTableData implements Serializable {
 
+    @Serial
     private static final long serialVersionUID = 1L;
 
     /**
