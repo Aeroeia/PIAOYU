@@ -12,9 +12,15 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.reactive.config.CorsRegistry;
 import org.springframework.web.reactive.config.WebFluxConfigurer;
 
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 public class Config implements WebFluxConfigurer {
+    
+    private final AtomicInteger threadCount = new AtomicInteger(1);
     
     @Bean
     RestTemplate restTemplate(){
@@ -40,6 +46,19 @@ public class Config implements WebFluxConfigurer {
                 .allowedOrigins("*")
                 .allowedMethods("*")
                 .allowedHeaders("*")
+                .allowCredentials(true)
                 .maxAge(3600L);
+    }
+    
+    @Bean
+    public ThreadPoolExecutor threadPoolExecutor(){
+        return new ThreadPoolExecutor(Runtime.getRuntime().availableProcessors(),
+                Runtime.getRuntime().availableProcessors()+10,
+                60,
+                TimeUnit.SECONDS,
+                new LinkedBlockingQueue<>(),
+                r -> new Thread(
+                        Thread.currentThread().getThreadGroup(), r,
+                        "listen-start-thread-" + threadCount.getAndIncrement()));
     }
 }
