@@ -3,6 +3,8 @@ package com.damai.captcha.service.impl;
 import com.damai.captcha.service.CaptchaCacheService;
 import com.damai.captcha.util.CacheUtil;
 
+import java.util.Objects;
+
 
 public class CaptchaCacheServiceMemImpl implements CaptchaCacheService {
     @Override
@@ -28,8 +30,8 @@ public class CaptchaCacheServiceMemImpl implements CaptchaCacheService {
 
 	@Override
 	public Long increment(String key, long val) {
-    	Long ret = Long.valueOf(CacheUtil.get(key))+val;
-		CacheUtil.set(key,ret+"",0);
+    	Long ret = Long.parseLong(Objects.requireNonNull(CacheUtil.get(key)))+val;
+		CacheUtil.set(key, String.valueOf(ret),0);
 		return ret;
 	}
 
