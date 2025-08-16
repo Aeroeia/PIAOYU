@@ -21,4 +21,7 @@ public class GatewayProperty {
     
     @Value("${skip.check.parmeter.paths:/**/alipay/notify}")
     private String[] checkSkipParmeterPaths;
+    
+    @Value("${allow.normal.access:true}")
+    private boolean allowNormalAccess;
 }
