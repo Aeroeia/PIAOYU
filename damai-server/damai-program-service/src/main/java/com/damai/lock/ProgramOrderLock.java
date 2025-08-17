@@ -25,6 +25,8 @@ import java.util.stream.Collectors;
 
 import static com.damai.core.DistributedLockConstants.PROGRAM_ORDER_CREATE_V1;
 import static com.damai.core.DistributedLockConstants.PROGRAM_ORDER_CREATE_V2;
+import static com.damai.core.DistributedLockConstants.PROGRAM_ORDER_CREATE_V3;
+import static com.damai.core.DistributedLockConstants.PROGRAM_ORDER_CREATE_V4;
 
 @Slf4j
 @Component
@@ -119,7 +121,8 @@ public class ProgramOrderLock {
             keys = {"#programOrderCreateDto.userId","#programOrderCreateDto.programId"})
     public String createV3(ProgramOrderCreateDto programOrderCreateDto) {
         compositeContainer.execute(CompositeCheckType.PROGRAM_ORDER_CREATE_CHECK.getValue(),programOrderCreateDto);
-        return programOrderService.createNew(programOrderCreateDto);
+        return localLockCreateOrder(PROGRAM_ORDER_CREATE_V3,programOrderCreateDto,
+                () -> programOrderService.createNew(programOrderCreateDto));
     }
     
     @RepeatExecuteLimit(
@@ -127,6 +130,46 @@ public class ProgramOrderLock {
             keys = {"#programOrderCreateDto.userId","#programOrderCreateDto.programId"})
     public String createV4(ProgramOrderCreateDto programOrderCreateDto) {
         compositeContainer.execute(CompositeCheckType.PROGRAM_ORDER_CREATE_CHECK.getValue(),programOrderCreateDto);
-        return programOrderService.createNewAsync(programOrderCreateDto);
+        return localLockCreateOrder(PROGRAM_ORDER_CREATE_V4,programOrderCreateDto,
+                () -> programOrderService.createNewAsync(programOrderCreateDto));
+    }
+    
+    public String localLockCreateOrder(String lockKeyPrefix,ProgramOrderCreateDto programOrderCreateDto,LockTask<String> lockTask){
+        List<SeatDto> seatDtoList = programOrderCreateDto.getSeatDtoList();
+        List<Long> ticketCategoryIdList = new ArrayList<>();
+        if (CollectionUtil.isNotEmpty(seatDtoList)) {
+            ticketCategoryIdList =
+                    seatDtoList.stream().map(SeatDto::getTicketCategoryId).distinct().collect(Collectors.toList());
+        }else {
+            ticketCategoryIdList.add(programOrderCreateDto.getTicketCategoryId());
+        }
+        List<ReentrantLock> localLockList = new ArrayList<>(ticketCategoryIdList.size());
+        List<ReentrantLock> localLockSuccessList = new ArrayList<>(ticketCategoryIdList.size());
+        for (Long ticketCategoryId : ticketCategoryIdList) {
+            String lockKey = StrUtil.join("-",lockKeyPrefix,
+                    programOrderCreateDto.getProgramId(),ticketCategoryId);
+            ReentrantLock localLock = localLockCache.getLock(lockKey,false);
+            localLockList.add(localLock);
+        }
+        for (ReentrantLock reentrantLock : localLockList) {
+            try {
+                reentrantLock.lock();
+            }catch (Throwable t) {
+                break;
+            }
+            localLockSuccessList.add(reentrantLock);
+        }
+        try {
+            return lockTask.execute();
+        }finally {
+            for (int i = localLockSuccessList.size() - 1; i >= 0; i--) {
+                ReentrantLock reentrantLock = localLockSuccessList.get(i);
+                try {
+                    reentrantLock.unlock();
+                }catch (Throwable t) {
+                    log.error("local lock unlock error",t);
+                }
+            }
+        }
     }
 }
