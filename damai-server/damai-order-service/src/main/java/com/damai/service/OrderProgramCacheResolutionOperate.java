@@ -1,7 +1,7 @@
-package com.damai.service.lua;
+package com.damai.service;
 
-import com.alibaba.fastjson.JSON;
 import com.damai.redis.RedisCache;
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
@@ -9,31 +9,29 @@ import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.scripting.support.ResourceScriptSource;
 import org.springframework.stereotype.Component;
 
-import jakarta.annotation.PostConstruct;
 import java.util.List;
 
 @Slf4j
 @Component
-public class ProgramCacheCreateOrderOperate {
+public class OrderProgramCacheResolutionOperate {
     
     @Autowired
     private RedisCache redisCache;
     
-    private DefaultRedisScript<String> redisScript;
+    private DefaultRedisScript redisScript;
     
     @PostConstruct
     public void init(){
         try {
             redisScript = new DefaultRedisScript<>();
-            redisScript.setScriptSource(new ResourceScriptSource(new ClassPathResource("lua/programDataCreateOrder.lua")));
-            redisScript.setResultType(String.class);
+            redisScript.setScriptSource(new ResourceScriptSource(new ClassPathResource("lua/OrderProgramDataResolution.lua")));
+            redisScript.setResultType(Integer.class);
         } catch (Exception e) {
             log.error("redisScript init lua error",e);
         }
     }
     
-    public ProgramCacheCreateOrderData programCacheOperate(List<String> keys, String[] args){
-        Object object = redisCache.getInstance().execute(redisScript, keys, args);
-        return JSON.parseObject((String)object, ProgramCacheCreateOrderData.class);
+    public void programCacheReverseOperate(List<String> keys, Object... args){
+        redisCache.getInstance().execute(redisScript, keys, args);
     }
 }

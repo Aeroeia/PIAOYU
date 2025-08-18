@@ -66,9 +66,6 @@ public abstract class AbstractCaptchaService implements CaptchaService {
     protected static Boolean captchaAesStatus = true;
 
     protected static String clickWordFontStr = "WenQuanZhengHei.ttf";
-    
-    //点选文字字体
-    protected Font clickWordFont;
 
     protected static String cacheType = "local";
 
