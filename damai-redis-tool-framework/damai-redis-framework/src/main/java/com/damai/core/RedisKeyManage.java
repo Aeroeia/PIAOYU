@@ -1,6 +1,9 @@
 package com.damai.core;
 
 
+import lombok.Getter;
+
+@Getter
 public enum RedisKeyManage {
     /**
      * redis 缓存 key管理
@@ -89,22 +92,22 @@ public enum RedisKeyManage {
     /**
      * key值
      * */
-    private String key;
+    private final String key;
 
     /**
      * key的说明
      * */
-    private String keyIntroduce;
+    private final String keyIntroduce;
 
     /**
      * value的说明
      * */
-    private String valueIntroduce;
+    private final String valueIntroduce;
 
     /**
      * 作者
      * */
-    private String author;
+    private final String author;
 
     RedisKeyManage(String key, String keyIntroduce, String valueIntroduce, String author){
         this.key = key;
@@ -121,36 +124,5 @@ public enum RedisKeyManage {
         }
         return null;
     }
-
-    public String getKey() {
-        return key;
-    }
-
-    public void setKey(String key) {
-        this.key = key;
-    }
-
-    public String getKeyIntroduce() {
-        return keyIntroduce;
-    }
-
-    public void setKeyIntroduce(String keyIntroduce) {
-        this.keyIntroduce = keyIntroduce;
-    }
-
-    public String getValueIntroduce() {
-        return valueIntroduce;
-    }
-
-    public void setValueIntroduce(String valueIntroduce) {
-        this.valueIntroduce = valueIntroduce;
-    }
-
-    public String getAuthor() {
-        return author;
-    }
-
-    public void setAuthor(String author) {
-        this.author = author;
-    }
+    
 }

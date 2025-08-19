@@ -3,9 +3,11 @@ package com.damai.redis;
 
 import com.damai.core.RedisKeyManage;
 import com.damai.core.SpringUtil;
+import lombok.Getter;
 
 import java.util.Objects;
 
+@Getter
 public final class RedisKeyBuild {
     /**
      * 实际使用的key
@@ -29,11 +31,7 @@ public final class RedisKeyBuild {
     public static String getRedisKey(RedisKeyManage redisKeyManage) {
         return SpringUtil.getPrefixDistinctionName() + "-" + redisKeyManage.getKey();
     }
-
-    public String getRelKey() {
-        return relKey;
-    }
-
+    
     @Override
     public boolean equals(Object o) {
         if (this == o) {
