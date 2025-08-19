@@ -14,7 +14,7 @@ public class RedissonReentrantLocker implements ServiceLocker {
     
     @Override
     public RLock getLock(String lockKey) {
-        return redissonClient.getFairLock(lockKey);
+        return redissonClient.getLock(lockKey);
     }
     
     @Override
