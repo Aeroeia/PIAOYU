@@ -186,7 +186,11 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
     @Autowired
     private TokenExpireManager tokenExpireManager;
     
-    
+    /**
+     * 添加节目
+     * @param programAddDto 添加节目数据的入参
+     * @return 添加节目后的id
+     * */
     public Long add(ProgramAddDto programAddDto){
         Program program = new Program();
         BeanUtil.copyProperties(programAddDto,program);
@@ -195,10 +199,22 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
         return program.getId();
     }
     
+    /**
+     * 搜索
+     * @param programSearchDto 搜索节目数据的入参
+     * @return 执行后的结果
+     * */
     public PageVo<ProgramListVo> search(ProgramSearchDto programSearchDto) {
+        //将入参的参数进行具体的组装
         setQueryTime(programSearchDto);
         return programEs.search(programSearchDto);
     }
+    
+    /**
+     * 查询主页信息
+     * @param programListDto 查询节目数据的入参
+     * @return 执行后的结果
+     * */
     public List<ProgramHomeVo> selectHomeList(ProgramListDto programListDto) {
         
         List<ProgramHomeVo> programHomeVoList = programEs.selectHomeList(programListDto);
@@ -208,6 +224,11 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
         return dbSelectHomeList(programListDto);
     }
     
+    /**
+     * 查询主页信息（数据库查询）
+     * @param programPageListDto 查询节目数据的入参
+     * @return 执行后的结果
+     * */
     private List<ProgramHomeVo> dbSelectHomeList(ProgramListDto programPageListDto){
         List<ProgramHomeVo> programHomeVoList = new ArrayList<>();
         Map<Long, String> programCategoryMap = selectProgramCategoryMap(programPageListDto.getParentProgramCategoryIds());
@@ -268,6 +289,10 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
         return programHomeVoList;
     }
     
+    /**
+     * 组装节目参数
+     * @param programPageListDto 节目数据的入参
+     * */
     public void setQueryTime(ProgramPageListDto programPageListDto){
         switch (programPageListDto.getTimeType()) {
             case ProgramTimeType.TODAY:
@@ -300,6 +325,12 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
                 break;
         }
     }
+    
+    /**
+     * 查询分类列表（数据库查询）
+     * @param programPageListDto 查询节目数据的入参
+     * @return 执行后的结果
+     * */
     public PageVo<ProgramListVo> selectPage(ProgramPageListDto programPageListDto) {
         setQueryTime(programPageListDto);
         PageVo<ProgramListVo> pageVo = programEs.selectPage(programPageListDto);
@@ -309,11 +340,21 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
         return dbSelectPage(programPageListDto);
     }
     
+    /**
+     * 推荐列表
+     * @param programRecommendListDto 查询节目数据的入参
+     * @return 执行后的结果
+     * */
     public List<ProgramListVo> recommendList(ProgramRecommendListDto programRecommendListDto){
         compositeContainer.execute(CompositeCheckType.PROGRAM_RECOMMEND_CHECK.getValue(),programRecommendListDto);
         return programEs.recommendList(programRecommendListDto);
     }
     
+    /**
+     * 查询分类信息（数据库查询）
+     * @param programPageListDto 查询节目数据的入参
+     * @return 执行后的结果
+     * */
     public PageVo<ProgramListVo> dbSelectPage(ProgramPageListDto programPageListDto) {
         IPage<ProgramJoinShowTime> iPage = 
                 programMapper.selectPage(PageUtil.getPageParams(programPageListDto), programPageListDto);
@@ -355,21 +396,41 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
         });
     }
     
+    /**
+     * 查询节目详情
+     * @param programGetDto 查询节目数据的入参
+     * @return 执行后的结果
+     * */
     public ProgramVo detail(ProgramGetDto programGetDto) {
         compositeContainer.execute(CompositeCheckType.PROGRAM_DETAIL_CHECK.getValue(),programGetDto);
         return getDetail(programGetDto);
     }
     
+    /**
+     * 查询节目详情V1
+     * @param programGetDto 查询节目数据的入参
+     * @return 执行后的结果
+     * */
     public ProgramVo detailV1(ProgramGetDto programGetDto) {
         compositeContainer.execute(CompositeCheckType.PROGRAM_DETAIL_CHECK.getValue(),programGetDto);
         return getDetail(programGetDto);
     }
     
+    /**
+     * 查询节目详情V2
+     * @param programGetDto 查询节目数据的入参
+     * @return 执行后的结果
+     * */
     public ProgramVo detailV2(ProgramGetDto programGetDto) {
         compositeContainer.execute(CompositeCheckType.PROGRAM_DETAIL_CHECK.getValue(),programGetDto);
         return getDetailV2(programGetDto);
     }
     
+    /**
+     * 查询节目详情执行
+     * @param programGetDto 查询节目数据的入参
+     * @return 执行后的结果
+     * */
     public ProgramVo getDetail(ProgramGetDto programGetDto) {
         ProgramShowTime programShowTime = programShowTimeService.selectProgramShowTimeByProgramId(programGetDto.getId());
         ProgramVo programVo = programService.getById(programGetDto.getId(),DateUtils.countBetweenSecond(DateUtils.now(),
@@ -402,6 +463,11 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
         return programVo;
     }
     
+    /**
+     * 查询节目详情V2执行
+     * @param programGetDto 查询节目数据的入参
+     * @return 执行后的结果
+     * */
     public ProgramVo getDetailV2(ProgramGetDto programGetDto) {
         ProgramShowTime programShowTime =
                 programShowTimeService.selectProgramShowTimeByProgramIdMultipleCache(programGetDto.getId());
@@ -435,6 +501,12 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
         return programVo;
     }
     
+    /**
+     * 查询节目表详情执行（多级）
+     * @param programId 节目id
+     * @param showTime 节目演出时间
+     * @return 执行后的结果
+     * */
     public ProgramVo getByIdMultipleCache(Long programId, Date showTime){
         return localCacheProgram.getCache(RedisKeyBuild.createRedisKey(RedisKeyManage.PROGRAM, programId).getRelKey(),
                 key -> {
