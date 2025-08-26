@@ -25,6 +25,8 @@ public class ProgramSeatCacheData {
     
     private DefaultRedisScript redisScript;
     
+    private static final Integer THRESHOLD_VALUE = 2000;
+    
     @PostConstruct
     public void init(){
         try {
@@ -43,7 +45,7 @@ public class ProgramSeatCacheData {
         if (Objects.nonNull(object) && object instanceof ArrayList) {
             seatVoStrlist = (ArrayList<String>)object;
         }
-        if (seatVoStrlist.size() > 2000) {
+        if (seatVoStrlist.size() > THRESHOLD_VALUE) {
             list = seatVoStrlist.parallelStream()
                     .map(seatVoStr -> JSON.parseObject(seatVoStr,SeatVo.class)).collect(Collectors.toList());
         }else {
