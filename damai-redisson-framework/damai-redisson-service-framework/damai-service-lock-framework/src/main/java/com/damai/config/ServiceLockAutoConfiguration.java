@@ -18,17 +18,11 @@ public class ServiceLockAutoConfiguration {
         return new ServiceLockInfoHandle();
     }
     
-    /**
-     * 锁管理
-     * */
     @Bean
     public ManageLocker manageLocker(RedissonClient redissonClient){
         return new ManageLocker(redissonClient);
     }
     
-    /**
-     * 锁工厂
-     * */
     @Bean
     public ServiceLockFactory serviceLockFactory(ManageLocker manageLocker){
         return new ServiceLockFactory(manageLocker);
