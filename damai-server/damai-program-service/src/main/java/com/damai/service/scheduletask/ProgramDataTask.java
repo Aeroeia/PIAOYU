@@ -35,7 +35,7 @@ public class ProgramDataTask {
     public void executeTask(){
         BusinessThreadPool.execute( () -> {
             try {
-                log.warn("定时任务重置执行");
+                log.warn("节目服务定时任务重置执行");
                 List<Long> allProgramIdList = programService.getAllProgramIdList();
                 if (CollectionUtil.isNotEmpty(allProgramIdList)) {
                     for (Long programId : allProgramIdList) {
