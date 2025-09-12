@@ -23,7 +23,6 @@ public class IdGeneratorRedisConfig {
     
     @Bean("disposableWorkerIdAssigner")
     public WorkerIdAssigner redisDisposableWorkerIdAssigner(@Qualifier("idGeneratorRedisTemplate") RedisTemplate redisTemplate){
-        RedisDisposableWorkerIdAssigner redisDisposableWorkerIdAssigner = new RedisDisposableWorkerIdAssigner(redisTemplate);
-        return redisDisposableWorkerIdAssigner;
+        return new RedisDisposableWorkerIdAssigner(redisTemplate);
     }
 }

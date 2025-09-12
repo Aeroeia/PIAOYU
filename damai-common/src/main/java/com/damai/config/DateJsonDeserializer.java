@@ -34,7 +34,7 @@ public class DateJsonDeserializer extends JsonDeserializer<Date> {
 			return null;
 		}
 		
-//		校验字符串是否是数字 
+		//校验字符串是否是数字 
 		if(isNum(str)) {
 			convertDate = DateUtils.parse(Long.valueOf(str));
 		}else {
@@ -61,7 +61,7 @@ public class DateJsonDeserializer extends JsonDeserializer<Date> {
 	 * 校验字符串是否是数字
 	 *
 	 * @param number
-	 * @return
+	 * @return 结果
 	 */
 	public static boolean isNum(String number) {
 		Matcher m = P.matcher(number);
