@@ -1,5 +1,8 @@
 package com.damai.captcha.model.common;
 
+import lombok.Getter;
+
+@Getter
 public enum CaptchaBaseMapEnum {
     /**
      * 枚举
@@ -17,15 +20,7 @@ public enum CaptchaBaseMapEnum {
         this.codeValue = codeValue;
         this.codeDesc = codeDesc;
     }
-
-    public String getCodeValue() {
-        return this.codeValue;
-    }
-
-    public String getCodeDesc() {
-        return this.codeDesc;
-    }
-
+    
     /**
      * 根据codeValue获取枚举
      * */

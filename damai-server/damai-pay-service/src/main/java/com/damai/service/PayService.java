@@ -74,19 +74,25 @@ public class PayService {
         PayResult pay = payStrategyHandler.pay(String.valueOf(payDto.getOrderNumber()), payDto.getPrice(), 
                 payDto.getSubject(),payDto.getNotifyUrl(),payDto.getReturnUrl());
         if (pay.isSuccess()) {
-            payBill = new PayBill();
-            payBill.setId(uidGenerator.getUid());
-            payBill.setOutOrderNo(String.valueOf(payDto.getOrderNumber()));
-            payBill.setPayChannel(payDto.getChannel());
-            payBill.setPayScene("生产");
-            payBill.setSubject(payDto.getSubject());
-            payBill.setPayAmount(payDto.getPrice());
-            payBill.setPayBillType(payDto.getPayBillType());
-            payBill.setPayBillStatus(PayBillStatus.NO_PAY.getCode());
-            payBill.setPayTime(DateUtils.now());
-            payBillMapper.insert(payBill);
+            if (Objects.isNull(payBill)){
+                payBill = new PayBill();
+                payBill.setId(uidGenerator.getUid());
+                payBill.setOutOrderNo(String.valueOf(payDto.getOrderNumber()));
+                payBill.setPayChannel(payDto.getChannel());
+                payBill.setPayScene("生产");
+                payBill.setSubject(payDto.getSubject());
+                payBill.setPayAmount(payDto.getPrice());
+                payBill.setPayBillType(payDto.getPayBillType());
+                payBill.setPayBillStatus(PayBillStatus.NO_PAY.getCode());
+                payBill.setPayTime(DateUtils.now());
+                payBillMapper.insert(payBill);
+            }else {
+                PayBill updatePayBill = new PayBill();
+                updatePayBill.setId(payBill.getId());
+                updatePayBill.setPayTime(DateUtils.now());
+                payBillMapper.updateById(updatePayBill);
+            }
         }
-        
         return pay.getBody();
     }
     
@@ -182,6 +188,7 @@ public class PayService {
         return tradeCheckVo;
     }
     
+    @Transactional(rollbackFor = Exception.class)
     public String refund(RefundDto refundDto) {
         PayBill payBill = payBillMapper.selectOne(Wrappers.lambdaQuery(PayBill.class)
                 .eq(PayBill::getOutOrderNo, refundDto.getOrderNumber()));
@@ -201,12 +208,16 @@ public class PayService {
         RefundResult refundResult = 
                 payStrategyHandler.refund(refundDto.getOrderNumber(), refundDto.getAmount(), refundDto.getReason());
         if (refundResult.isSuccess()) {
+            PayBill updatePayBill = new PayBill();
+            updatePayBill.setId(payBill.getId());
+            updatePayBill.setPayBillStatus(PayBillStatus.REFUND.getCode());
+            payBillMapper.updateById(updatePayBill);
             RefundBill refundBill = new RefundBill();
             refundBill.setId(uidGenerator.getUid());
             refundBill.setOutOrderNo(payBill.getOutOrderNo());
             refundBill.setPayBillId(payBill.getId());
             refundBill.setRefundAmount(refundDto.getAmount());
-            refundBill.setRefundStatus(1);
+            refundBill.setRefundStatus(2);
             refundBill.setRefundTime(DateUtils.now());
             refundBill.setReason(refundDto.getReason());
             refundBillMapper.insert(refundBill);

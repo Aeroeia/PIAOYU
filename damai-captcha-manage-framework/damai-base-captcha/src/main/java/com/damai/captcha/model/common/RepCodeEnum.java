@@ -6,9 +6,12 @@
  */
 package com.damai.captcha.model.common;
 
+import lombok.Getter;
+
 import java.text.MessageFormat;
 
 
+@Getter
 public enum RepCodeEnum {
 
     /** 0001 - 0099 网关应答码 */
@@ -42,12 +45,7 @@ public enum RepCodeEnum {
         this.code = code;
         this.desc = desc;
     }
-    public String getCode() {
-        return code;
-    }
-    public String getDesc() {
-        return desc;
-    }
+    
     public String getName(){
         return this.name();
     }

@@ -27,7 +27,7 @@ public class DatabaseOrderComplexGeneArithmetic implements ComplexKeysShardingAl
         this.shardingCount = Integer.parseInt(props.getProperty(SHARDING_COUNT_KEY_NAME));
         this.tableShardingCount = Integer.parseInt(props.getProperty(TABLE_SHARDING_COUNT_KEY_NAME));
     }
-    @Override
+        @Override
     public Collection<String> doSharding(Collection<String> allActualSplitDatabaseNames, ComplexKeysShardingValue<Long> complexKeysShardingValue) {
         List<String> actualDatabaseNames = new ArrayList<>(allActualSplitDatabaseNames.size());
         Map<String, Collection<Long>> columnNameAndShardingValuesMap = complexKeysShardingValue.getColumnNameAndShardingValuesMap();

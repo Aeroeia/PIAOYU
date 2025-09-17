@@ -20,7 +20,7 @@ public class DelayOrderCancelConsumer implements ConsumerTask {
     @Autowired
     private OrderService orderService;
     
-    @Override
+        @Override
     public void execute(String content) {
         log.info("延迟订单取消消息进行消费 content : {}", content);
         if (StringUtil.isEmpty(content)) {

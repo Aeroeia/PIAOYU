@@ -23,7 +23,8 @@ public class TableOrderComplexGeneArithmetic implements ComplexKeysShardingAlgor
     public void init(Properties props) {
         shardingCount = Integer.parseInt(props.getProperty(SHARDING_COUNT_KEY_NAME));
     }
-    @Override
+    
+        @Override
     public Collection<String> doSharding(Collection<String> allActualSplitTableNames, ComplexKeysShardingValue<Long> complexKeysShardingValue) {
         List<String> actualTableNames = new ArrayList<>(allActualSplitTableNames.size());
         String logicTableName = complexKeysShardingValue.getLogicTableName();

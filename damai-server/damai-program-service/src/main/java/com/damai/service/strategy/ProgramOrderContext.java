@@ -9,7 +9,7 @@ import java.util.Optional;
 
 public class ProgramOrderContext {
     
-    private static final Map<String,ProgramOrderStrategy> MAP = new HashMap<>(8);
+        private static final Map<String,ProgramOrderStrategy> MAP = new HashMap<>(8);
     
     public static void add(String version,ProgramOrderStrategy programOrderStrategy){
         MAP.put(version,programOrderStrategy);

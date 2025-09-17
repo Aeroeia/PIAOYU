@@ -181,8 +181,7 @@ public class ProgramOrderService {
         List<SeatVo> purchaseSeatList = createOrderOperateProgramCacheResolution(programOrderCreateDto);
         return doCreate(programOrderCreateDto,purchaseSeatList);
     }
-    
-    public String createNewAsync(ProgramOrderCreateDto programOrderCreateDto) {
+        public String createNewAsync(ProgramOrderCreateDto programOrderCreateDto) {
         List<SeatVo> purchaseSeatList = createOrderOperateProgramCacheResolution(programOrderCreateDto);
         return doCreateV2(programOrderCreateDto,purchaseSeatList);
     }

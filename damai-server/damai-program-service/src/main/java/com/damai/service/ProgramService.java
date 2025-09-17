@@ -203,12 +203,7 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
         return program.getId();
     }
     
-    /**
-     * 搜索
-     * @param programSearchDto 搜索节目数据的入参
-     * @return 执行后的结果
-     * */
-    public PageVo<ProgramListVo> search(ProgramSearchDto programSearchDto) {
+        public PageVo<ProgramListVo> search(ProgramSearchDto programSearchDto) {
         //将入参的参数进行具体的组装
         setQueryTime(programSearchDto);
         return programEs.search(programSearchDto);
