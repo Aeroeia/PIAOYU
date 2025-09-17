@@ -9,6 +9,7 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.Date;
 
+
 @Data
 @TableName("d_order")
 public class Order extends BaseTableData implements Serializable {
@@ -20,17 +21,22 @@ public class Order extends BaseTableData implements Serializable {
      * 主键id
      */
     private Long id;
-    
+
     /**
      * 订单编号
      * */
     private Long orderNumber;
 
     /**
+     * 记录id
+     */
+    private Long identifierId;
+
+    /**
      * 节目表id
      */
     private Long programId;
-    
+
     /**
      * 节目图片介绍
      * */
@@ -40,22 +46,22 @@ public class Order extends BaseTableData implements Serializable {
      * 用户id
      */
     private Long userId;
-    
+
     /**
      * 节目标题
      * */
     private String programTitle;
-    
+
     /**
      * 节目地点
      * */
     private String programPlace;
-    
+
     /**
      * 节目演出时间
      * */
     private Date programShowTime;
-    
+
     /**
      * 节目是否允许选座 1:允许选座 0:不允许选座
      * */

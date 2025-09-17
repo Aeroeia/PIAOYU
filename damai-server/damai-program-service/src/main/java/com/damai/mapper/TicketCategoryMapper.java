@@ -9,29 +9,32 @@ import org.apache.ibatis.annotations.Param;
 import java.util.List;
 
 public interface TicketCategoryMapper extends BaseMapper<TicketCategory> {
-    
+
     /**
      * 票档统计
      * @param programIdList 参数
      * @return 结果
      * */
     List<TicketCategoryAggregate> selectAggregateList(@Param("programIdList")List<Long> programIdList);
-    
+
     /**
      * 更新数量
-     * @param number 数量
-     * @param id id
+     * @param amount 数量
+     * @param id 票档id
+     * @param programId 节目id
      * @return 结果
      * */
-    int updateRemainNumber(@Param("number")Long number,@Param("id")Long id);
-    
+    int updateRemainNumber(@Param("amount")Long amount,
+                           @Param("id")Long id,
+                           @Param("programId") Long programId);
+
     /**
      * 批量更新数量
      * @param ticketCategoryCountDtoList 参数
      * @param programId 参数
      * @return 结果
      * */
-    int batchUpdateRemainNumber(@Param("ticketCategoryCountDtoList") 
+    int batchUpdateRemainNumber(@Param("ticketCategoryCountDtoList")
                                 List<TicketCategoryCountDto> ticketCategoryCountDtoList,
                                 @Param("programId")
                                 Long programId);

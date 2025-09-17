@@ -20,6 +20,7 @@ import com.damai.dto.AccountOrderCountDto;
 import com.damai.dto.AreaGetDto;
 import com.damai.dto.AreaSelectDto;
 import com.damai.dto.ProgramAddDto;
+import com.damai.dto.ProgramDataPreheatDto;
 import com.damai.dto.ProgramGetDto;
 import com.damai.dto.ProgramInvalidDto;
 import com.damai.dto.ProgramListDto;
@@ -28,6 +29,7 @@ import com.damai.dto.ProgramPageListDto;
 import com.damai.dto.ProgramRecommendListDto;
 import com.damai.dto.ProgramResetExecuteDto;
 import com.damai.dto.ProgramSearchDto;
+import com.damai.dto.ReduceRemainNumberDto;
 import com.damai.dto.TicketCategoryCountDto;
 import com.damai.dto.TicketUserListDto;
 import com.damai.entity.Program;
@@ -104,92 +106,99 @@ import static com.damai.constant.Constant.USER_ID;
 import static com.damai.core.DistributedLockConstants.GET_PROGRAM_LOCK;
 import static com.damai.core.DistributedLockConstants.PROGRAM_GROUP_LOCK;
 import static com.damai.core.DistributedLockConstants.PROGRAM_LOCK;
-import static com.damai.core.RepeatExecuteLimitConstants.CANCEL_PROGRAM_ORDER;
+import static com.damai.core.RepeatExecuteLimitConstants.PAY_PROGRAM_ORDER;
+import static com.damai.core.RepeatExecuteLimitConstants.REDUCE_REMAIN_NUMBER;
 import static com.damai.util.DateUtils.FORMAT_DATE;
 
 @Slf4j
 @Service
 public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
-    
+
     @Autowired
     private UidGenerator uidGenerator;
-    
+
     @Autowired
     private ProgramMapper programMapper;
-    
+
     @Autowired
     private ProgramGroupMapper programGroupMapper;
-    
+
     @Autowired
     private ProgramShowTimeMapper programShowTimeMapper;
-    
+
     @Autowired
-    private ProgramCategoryMapper programCategoryMapper; 
-    
+    private ProgramCategoryMapper programCategoryMapper;
+
     @Autowired
     private TicketCategoryMapper ticketCategoryMapper;
-    
+
     @Autowired
     private SeatMapper seatMapper;
-    
+
     @Autowired
     private BaseDataClient baseDataClient;
-    
+
     @Autowired
     private UserClient userClient;
-    
+
     @Autowired
     private OrderClient orderClient;
-    
+
     @Autowired
     private RedisCache redisCache;
-    
+
     @Lazy
     @Autowired
     private ProgramService programService;
-    
+
     @Autowired
     private ProgramShowTimeService programShowTimeService;
-    
+
     @Autowired
     private TicketCategoryService ticketCategoryService;
-    
+
     @Autowired
     private ProgramCategoryService programCategoryService;
-    
+
     @Autowired
     private ProgramEs programEs;
-    
+
     @Autowired
     private ServiceLockTool serviceLockTool;
-    
+
     @Autowired
     private RedisStreamPushHandler redisStreamPushHandler;
-    
+
     @Autowired
     private LocalCacheProgram localCacheProgram;
-    
+
     @Autowired
     private LocalCacheProgramGroup localCacheProgramGroup;
-    
+
     @Autowired
     private LocalCacheProgramCategory localCacheProgramCategory;
-    
+
     @Autowired
     private LocalCacheProgramShowTime localCacheProgramShowTime;
-    
+
     @Autowired
     private LocalCacheTicketCategory localCacheTicketCategory;
-    
+
     @Autowired
     private CompositeContainer compositeContainer;
-    
+
     @Autowired
     private TokenExpireManager tokenExpireManager;
-    
+
     @Autowired
     private ProgramDelCacheData programDelCacheData;
-    
+
+    @Autowired
+    private ProgramOrderService programOrderService;
+
+    @Autowired
+    private SeatService seatService;
+
     /**
      * 添加节目
      * @param programAddDto 添加节目数据的入参
@@ -202,27 +211,32 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
         programMapper.insert(program);
         return program.getId();
     }
-    
-        public PageVo<ProgramListVo> search(ProgramSearchDto programSearchDto) {
+
+    /**
+     * 搜索
+     * @param programSearchDto 搜索节目数据的入参
+     * @return 执行后的结果
+     * */
+    public PageVo<ProgramListVo> search(ProgramSearchDto programSearchDto) {
         //将入参的参数进行具体的组装
         setQueryTime(programSearchDto);
         return programEs.search(programSearchDto);
     }
-    
+
     /**
      * 查询主页信息
      * @param programListDto 查询节目数据的入参
      * @return 执行后的结果
      * */
     public List<ProgramHomeVo> selectHomeList(ProgramListDto programListDto) {
-        
+
         List<ProgramHomeVo> programHomeVoList = programEs.selectHomeList(programListDto);
         if (CollectionUtil.isNotEmpty(programHomeVoList)) {
             return programHomeVoList;
         }
         return dbSelectHomeList(programListDto);
     }
-    
+
     /**
      * 查询主页信息（数据库查询）
      * @param programPageListDto 查询节目数据的入参
@@ -231,24 +245,24 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
     private List<ProgramHomeVo> dbSelectHomeList(ProgramListDto programPageListDto){
         List<ProgramHomeVo> programHomeVoList = new ArrayList<>();
         Map<Long, String> programCategoryMap = selectProgramCategoryMap(programPageListDto.getParentProgramCategoryIds());
-        
+
         List<Program> programList = programMapper.selectHomeList(programPageListDto);
         if (CollectionUtil.isEmpty(programList)) {
             return programHomeVoList;
         }
-        
+
         List<Long> programIdList = programList.stream().map(Program::getId).collect(Collectors.toList());
         LambdaQueryWrapper<ProgramShowTime> programShowTimeLambdaQueryWrapper = Wrappers.lambdaQuery(ProgramShowTime.class)
                 .in(ProgramShowTime::getProgramId, programIdList);
         List<ProgramShowTime> programShowTimeList = programShowTimeMapper.selectList(programShowTimeLambdaQueryWrapper);
-        Map<Long, List<ProgramShowTime>> programShowTimeMap = 
+        Map<Long, List<ProgramShowTime>> programShowTimeMap =
                 programShowTimeList.stream().collect(Collectors.groupingBy(ProgramShowTime::getProgramId));
-        
+
         Map<Long, TicketCategoryAggregate> ticketCategorieMap = selectTicketCategorieMap(programIdList);
-        
+
         Map<Long, List<Program>> programMap = programList.stream()
                 .collect(Collectors.groupingBy(Program::getParentProgramCategoryId));
-        
+
         for (Entry<Long, List<Program>> programEntry : programMap.entrySet()) {
             Long key = programEntry.getKey();
             List<Program> value = programEntry.getValue();
@@ -256,7 +270,7 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
             for (Program program : value) {
                 ProgramListVo programListVo = new ProgramListVo();
                 BeanUtil.copyProperties(program,programListVo);
-                
+
                 programListVo.setShowTime(Optional.ofNullable(programShowTimeMap.get(program.getId()))
                         .filter(list -> !list.isEmpty())
                         .map(list -> list.get(0))
@@ -272,7 +286,7 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
                         .map(list -> list.get(0))
                         .map(ProgramShowTime::getShowWeekTime)
                         .orElse(null));
-                
+
                 programListVo.setMaxPrice(Optional.ofNullable(ticketCategorieMap.get(program.getId()))
                         .map(TicketCategoryAggregate::getMaxPrice).orElse(null));
                 programListVo.setMinPrice(Optional.ofNullable(ticketCategorieMap.get(program.getId()))
@@ -287,7 +301,7 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
         }
         return programHomeVoList;
     }
-    
+
     /**
      * 组装节目参数
      * @param programPageListDto 节目数据的入参
@@ -324,7 +338,7 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
                 break;
         }
     }
-    
+
     /**
      * 查询分类列表（数据库查询）
      * @param programPageListDto 查询节目数据的入参
@@ -338,7 +352,7 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
         }
         return dbSelectPage(programPageListDto);
     }
-    
+
     /**
      * 推荐列表
      * @param programRecommendListDto 查询节目数据的入参
@@ -348,25 +362,25 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
         compositeContainer.execute(CompositeCheckType.PROGRAM_RECOMMEND_CHECK.getValue(),programRecommendListDto);
         return programEs.recommendList(programRecommendListDto);
     }
-    
+
     /**
      * 查询分类信息（数据库查询）
      * @param programPageListDto 查询节目数据的入参
      * @return 执行后的结果
      * */
     public PageVo<ProgramListVo> dbSelectPage(ProgramPageListDto programPageListDto) {
-        IPage<ProgramJoinShowTime> iPage = 
+        IPage<ProgramJoinShowTime> iPage =
                 programMapper.selectPage(PageUtil.getPageParams(programPageListDto), programPageListDto);
         if (CollectionUtil.isEmpty(iPage.getRecords())) {
             return new PageVo<>(iPage.getCurrent(), iPage.getSize(), iPage.getTotal(), new ArrayList<>());
         }
-        Set<Long> programCategoryIdList = 
+        Set<Long> programCategoryIdList =
                 iPage.getRecords().stream().map(Program::getProgramCategoryId).collect(Collectors.toSet());
         Map<Long, String> programCategoryMap = selectProgramCategoryMap(programCategoryIdList);
-        
+
         List<Long> programIdList = iPage.getRecords().stream().map(Program::getId).collect(Collectors.toList());
         Map<Long, TicketCategoryAggregate> ticketCategorieMap = selectTicketCategorieMap(programIdList);
-        
+
         Map<Long,String> tempAreaMap = new HashMap<>(64);
         AreaSelectDto areaSelectDto = new AreaSelectDto();
         areaSelectDto.setIdList(iPage.getRecords().stream().map(Program::getAreaId).distinct().collect(Collectors.toList()));
@@ -380,11 +394,11 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
             log.error("base-data selectByIdList rpc error areaResponse:{}", JSON.toJSONString(areaResponse));
         }
         Map<Long,String> areaMap = tempAreaMap;
-        
+
         return PageUtil.convertPage(iPage, programJoinShowTime -> {
             ProgramListVo programListVo = new ProgramListVo();
             BeanUtil.copyProperties(programJoinShowTime, programListVo);
-            
+
             programListVo.setAreaName(areaMap.get(programJoinShowTime.getAreaId()));
             programListVo.setProgramCategoryName(programCategoryMap.get(programJoinShowTime.getProgramCategoryId()));
             programListVo.setMinPrice(Optional.ofNullable(ticketCategorieMap.get(programJoinShowTime.getId()))
@@ -394,7 +408,7 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
             return programListVo;
         });
     }
-    
+
     /**
      * 查询节目详情
      * @param programGetDto 查询节目数据的入参
@@ -404,7 +418,7 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
         compositeContainer.execute(CompositeCheckType.PROGRAM_DETAIL_CHECK.getValue(),programGetDto);
         return getDetail(programGetDto);
     }
-    
+
     /**
      * 查询节目详情V1
      * @param programGetDto 查询节目数据的入参
@@ -414,7 +428,7 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
         compositeContainer.execute(CompositeCheckType.PROGRAM_DETAIL_CHECK.getValue(),programGetDto);
         return getDetail(programGetDto);
     }
-    
+
     /**
      * 查询节目详情V2
      * @param programGetDto 查询节目数据的入参
@@ -424,7 +438,7 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
         compositeContainer.execute(CompositeCheckType.PROGRAM_DETAIL_CHECK.getValue(),programGetDto);
         return getDetailV2(programGetDto);
     }
-    
+
     /**
      * 查询节目详情执行
      * @param programGetDto 查询节目数据的入参
@@ -437,14 +451,14 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
         programVo.setShowTime(programShowTime.getShowTime());
         programVo.setShowDayTime(programShowTime.getShowDayTime());
         programVo.setShowWeekTime(programShowTime.getShowWeekTime());
-        
+
         ProgramGroupVo programGroupVo = programService.getProgramGroup(programVo.getProgramGroupId());
         programVo.setProgramGroupVo(programGroupVo);
-        
+
         preloadTicketUserList(programVo.getHighHeat());
-        
+
         preloadAccountOrderCount(programVo.getId());
-        
+
         ProgramCategory programCategory = getProgramCategory(programVo.getProgramCategoryId());
         if (Objects.nonNull(programCategory)) {
             programVo.setProgramCategoryName(programCategory.getName());
@@ -453,15 +467,15 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
         if (Objects.nonNull(parentProgramCategory)) {
             programVo.setParentProgramCategoryName(parentProgramCategory.getName());
         }
-        
+
         List<TicketCategoryVo> ticketCategoryVoList =
                 ticketCategoryService.selectTicketCategoryListByProgramId(programVo.getId(),
                         DateUtils.countBetweenSecond(DateUtils.now(),programShowTime.getShowTime()), TimeUnit.SECONDS);
         programVo.setTicketCategoryVoList(ticketCategoryVoList);
-        
+
         return programVo;
     }
-    
+
     /**
      * 查询节目详情V2执行
      * @param programGetDto 查询节目数据的入参
@@ -470,20 +484,20 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
     public ProgramVo getDetailV2(ProgramGetDto programGetDto) {
         ProgramShowTime programShowTime =
                 programShowTimeService.selectProgramShowTimeByProgramIdMultipleCache(programGetDto.getId());
-        
+
         ProgramVo programVo = programService.getByIdMultipleCache(programGetDto.getId(),programShowTime.getShowTime());
-        
+
         programVo.setShowTime(programShowTime.getShowTime());
         programVo.setShowDayTime(programShowTime.getShowDayTime());
         programVo.setShowWeekTime(programShowTime.getShowWeekTime());
-        
+
         ProgramGroupVo programGroupVo = programService.getProgramGroupMultipleCache(programVo.getProgramGroupId());
         programVo.setProgramGroupVo(programGroupVo);
-        
+
         preloadTicketUserList(programVo.getHighHeat());
-        
+
         preloadAccountOrderCount(programVo.getId());
-        
+
         ProgramCategory programCategory = getProgramCategoryMultipleCache(programVo.getProgramCategoryId());
         if (Objects.nonNull(programCategory)) {
             programVo.setProgramCategoryName(programCategory.getName());
@@ -492,14 +506,14 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
         if (Objects.nonNull(parentProgramCategory)) {
             programVo.setParentProgramCategoryName(parentProgramCategory.getName());
         }
-        
+
         List<TicketCategoryVo> ticketCategoryVoList = ticketCategoryService
                 .selectTicketCategoryListByProgramIdMultipleCache(programVo.getId(),programShowTime.getShowTime());
         programVo.setTicketCategoryVoList(ticketCategoryVoList);
-        
+
         return programVo;
     }
-    
+
     /**
      * 查询节目表详情执行（多级）
      * @param programId 节目id
@@ -516,38 +530,38 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
                     return programVo;
                 });
     }
-    
+
     public ProgramVo simpleGetByIdMultipleCache(Long programId){
-        ProgramVo programVoCache = localCacheProgram.getCache(RedisKeyBuild.createRedisKey(RedisKeyManage.PROGRAM, 
+        ProgramVo programVoCache = localCacheProgram.getCache(RedisKeyBuild.createRedisKey(RedisKeyManage.PROGRAM,
                 programId).getRelKey());
         if (Objects.nonNull(programVoCache)) {
             return programVoCache;
         }
         return redisCache.get(RedisKeyBuild.createRedisKey(RedisKeyManage.PROGRAM, programId), ProgramVo.class);
     }
-    
+
     public ProgramVo simpleGetProgramAndShowMultipleCache(Long programId){
         ProgramShowTime programShowTime =
                 programShowTimeService.simpleSelectProgramShowTimeByProgramIdMultipleCache(programId);
         if (Objects.isNull(programShowTime)) {
             throw new DaMaiFrameException(BaseCode.PROGRAM_SHOW_TIME_NOT_EXIST);
         }
-        
+
         ProgramVo programVo = simpleGetByIdMultipleCache(programId);
         if (Objects.isNull(programVo)) {
             throw new DaMaiFrameException(BaseCode.PROGRAM_NOT_EXIST);
         }
-        
+
         programVo.setShowTime(programShowTime.getShowTime());
         programVo.setShowDayTime(programShowTime.getShowDayTime());
         programVo.setShowWeekTime(programShowTime.getShowWeekTime());
-        
+
         return programVo;
     }
-    
+
     @ServiceLock(lockType= LockType.Read,name = PROGRAM_LOCK,keys = {"#programId"})
     public ProgramVo getById(Long programId,Long expireTime,TimeUnit timeUnit) {
-        ProgramVo programVo = 
+        ProgramVo programVo =
                 redisCache.get(RedisKeyBuild.createRedisKey(RedisKeyManage.PROGRAM, programId), ProgramVo.class);
         if (Objects.nonNull(programVo)) {
             return programVo;
@@ -565,7 +579,7 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
             lock.unlock();
         }
     }
-    
+
     public ProgramGroupVo getProgramGroupMultipleCache(Long programGroupId){
         return localCacheProgramGroup.getCache(
                 RedisKeyBuild.createRedisKey(RedisKeyManage.PROGRAM_GROUP, programGroupId).getRelKey(),
@@ -581,7 +595,7 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
         RLock lock = serviceLockTool.getLock(LockType.Reentrant, GET_PROGRAM_LOCK, new String[]{String.valueOf(programGroupId)});
         lock.lock();
         try {
-            programGroupVo = redisCache.get(RedisKeyBuild.createRedisKey(RedisKeyManage.PROGRAM_GROUP, programGroupId), 
+            programGroupVo = redisCache.get(RedisKeyBuild.createRedisKey(RedisKeyManage.PROGRAM_GROUP, programGroupId),
                     ProgramGroupVo.class);
             if (Objects.isNull(programGroupVo)) {
                 programGroupVo = createProgramGroupVo(programGroupId);
@@ -593,7 +607,7 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
             lock.unlock();
         }
     }
-    
+
     public Map<Long, String> selectProgramCategoryMap(Collection<Long> programCategoryIdList){
         LambdaQueryWrapper<ProgramCategory> pcLambdaQueryWrapper = Wrappers.lambdaQuery(ProgramCategory.class)
                 .in(ProgramCategory::getId, programCategoryIdList);
@@ -602,21 +616,61 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
                 .stream()
                 .collect(Collectors.toMap(ProgramCategory::getId, ProgramCategory::getName, (v1, v2) -> v2));
     }
-    
+
     public Map<Long, TicketCategoryAggregate> selectTicketCategorieMap(List<Long> programIdList){
         List<TicketCategoryAggregate> ticketCategorieList = ticketCategoryMapper.selectAggregateList(programIdList);
         return ticketCategorieList
                 .stream()
-                .collect(Collectors.toMap(TicketCategoryAggregate::getProgramId, 
+                .collect(Collectors.toMap(TicketCategoryAggregate::getProgramId,
                         ticketCategory -> ticketCategory, (v1, v2) -> v2));
     }
-    
-    @RepeatExecuteLimit(name = CANCEL_PROGRAM_ORDER,keys = {"#programOperateDataDto.programId","#programOperateDataDto.seatIdList"})
+
+    @RepeatExecuteLimit(name = REDUCE_REMAIN_NUMBER,keys = {"#reduceRemainNumberDto.programId","#reduceRemainNumberDto.seatIdList"})
+    @Transactional(rollbackFor = Exception.class)
+    public Boolean operateSeatLockAndTicketCategoryRemainNumber(ReduceRemainNumberDto reduceRemainNumberDto){
+        List<TicketCategoryCountDto> ticketCategoryCountDtoList = reduceRemainNumberDto.getTicketCategoryCountDtoList();
+        List<Long> seatIdList = reduceRemainNumberDto.getSeatIdList();
+        LambdaQueryWrapper<Seat> seatLambdaQueryWrapper =
+                Wrappers.lambdaQuery(Seat.class)
+                        .eq(Seat::getProgramId,reduceRemainNumberDto.getProgramId())
+                        .in(Seat::getId, seatIdList);
+        List<Seat> seatList = seatMapper.selectList(seatLambdaQueryWrapper);
+        if (CollectionUtil.isEmpty(seatList)) {
+            throw new DaMaiFrameException(BaseCode.SEAT_NOT_EXIST);
+        }
+        if (seatList.size() != seatIdList.size()) {
+            throw new DaMaiFrameException(BaseCode.SEAT_UPDATE_REL_COUNT_NOT_EQUAL_PRESET_COUNT);
+        }
+        for (Seat seat : seatList) {
+            if (!Objects.equals(seat.getSellStatus(), SellStatus.SOLD.getCode())) {
+                throw new DaMaiFrameException(BaseCode.SEAT_IS_NOT_NOT_SOLD);
+            }
+        }
+        LambdaUpdateWrapper<Seat> seatLambdaUpdateWrapper =
+                Wrappers.lambdaUpdate(Seat.class)
+                        .eq(Seat::getProgramId,reduceRemainNumberDto.getProgramId())
+                        .in(Seat::getId, seatIdList);
+        Seat updateSeat = new Seat();
+        updateSeat.setSellStatus(reduceRemainNumberDto.getSellStatus());
+        seatMapper.update(updateSeat,seatLambdaUpdateWrapper);
+
+        int updateRemainNumberCount = 0;
+        for (TicketCategoryCountDto ticketCategoryCountDto : ticketCategoryCountDtoList) {
+            updateRemainNumberCount = updateRemainNumberCount + ticketCategoryMapper.updateRemainNumber(
+                    ticketCategoryCountDto.getCount(), ticketCategoryCountDto.getTicketCategoryId(),
+                    reduceRemainNumberDto.getProgramId());
+        }
+        if (updateRemainNumberCount != ticketCategoryCountDtoList.size()) {
+            throw new DaMaiFrameException(BaseCode.UPDATE_TICKET_CATEGORY_COUNT_NOT_CORRECT);
+        }
+        return true;
+    }
+
+    @RepeatExecuteLimit(name = PAY_PROGRAM_ORDER,keys = {"#programOperateDataDto.programId","#programOperateDataDto.seatIdList"})
     @Transactional(rollbackFor = Exception.class)
     public void operateProgramData(ProgramOperateDataDto programOperateDataDto){
-        List<TicketCategoryCountDto> ticketCategoryCountDtoList = programOperateDataDto.getTicketCategoryCountDtoList();
         List<Long> seatIdList = programOperateDataDto.getSeatIdList();
-        LambdaQueryWrapper<Seat> seatLambdaQueryWrapper = 
+        LambdaQueryWrapper<Seat> seatLambdaQueryWrapper =
                 Wrappers.lambdaQuery(Seat.class)
                         .eq(Seat::getProgramId,programOperateDataDto.getProgramId())
                         .in(Seat::getId, seatIdList);
@@ -628,28 +682,32 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
             throw new DaMaiFrameException(BaseCode.SEAT_UPDATE_REL_COUNT_NOT_EQUAL_PRESET_COUNT);
         }
         for (Seat seat : seatList) {
-            if (Objects.equals(seat.getSellStatus(), SellStatus.SOLD.getCode())) {
-                throw new DaMaiFrameException(BaseCode.SEAT_SOLD);
+            if (!Objects.equals(seat.getSellStatus(), SellStatus.LOCK.getCode())) {
+                throw new DaMaiFrameException(BaseCode.SEAT_IS_NOT_NOT_LOCK);
             }
         }
-        LambdaUpdateWrapper<Seat> seatLambdaUpdateWrapper = 
+        LambdaUpdateWrapper<Seat> seatLambdaUpdateWrapper =
                 Wrappers.lambdaUpdate(Seat.class)
                         .eq(Seat::getProgramId,programOperateDataDto.getProgramId())
                         .in(Seat::getId, seatIdList);
         Seat updateSeat = new Seat();
         updateSeat.setSellStatus(SellStatus.SOLD.getCode());
         seatMapper.update(updateSeat,seatLambdaUpdateWrapper);
-        
-        int updateRemainNumberCount = 
-                ticketCategoryMapper.batchUpdateRemainNumber(ticketCategoryCountDtoList,programOperateDataDto.getProgramId());
-        if (updateRemainNumberCount != ticketCategoryCountDtoList.size()) {
-            throw new DaMaiFrameException(BaseCode.UPDATE_TICKET_CATEGORY_COUNT_NOT_CORRECT);
-        }
+
+//        int updateRemainNumberCount = 0;
+//        for (TicketCategoryCountDto ticketCategoryCountDto : ticketCategoryCountDtoList) {
+//            updateRemainNumberCount = updateRemainNumberCount + ticketCategoryMapper.updateRemainNumber(
+//                    ticketCategoryCountDto.getCount(), ticketCategoryCountDto.getTicketCategoryId(),
+//                    programOperateDataDto.getProgramId());
+//        }
+//        if (updateRemainNumberCount != ticketCategoryCountDtoList.size()) {
+//            throw new DaMaiFrameException(BaseCode.UPDATE_TICKET_CATEGORY_COUNT_NOT_CORRECT);
+//        }
     }
-    
+
     private ProgramVo createProgramVo(Long programId){
         ProgramVo programVo = new ProgramVo();
-        Program program = 
+        Program program =
                 Optional.ofNullable(programMapper.selectById(programId))
                         .orElseThrow(() -> new DaMaiFrameException(BaseCode.PROGRAM_NOT_EXIST));
         BeanUtil.copyProperties(program,programVo);
@@ -665,7 +723,7 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
         }
         return programVo;
     }
-    
+
     private ProgramGroupVo createProgramGroupVo(Long programGroupId){
         ProgramGroupVo programGroupVo = new ProgramGroupVo();
         ProgramGroup programGroup =
@@ -676,7 +734,7 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
         programGroupVo.setRecentShowTime(programGroup.getRecentShowTime());
         return programGroupVo;
     }
-    
+
     public List<Long> getAllProgramIdList(){
         LambdaQueryWrapper<Program> programLambdaQueryWrapper =
                 Wrappers.lambdaQuery(Program.class).eq(Program::getProgramStatus, BusinessStatus.YES.getCode())
@@ -684,10 +742,10 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
         List<Program> programs = programMapper.selectList(programLambdaQueryWrapper);
         return programs.stream().map(Program::getId).collect(Collectors.toList());
     }
-    
+
     public ProgramVo getDetailFromDb(Long programId) {
         ProgramVo programVo = createProgramVo(programId);
-        
+
         ProgramCategory programCategory = getProgramCategory(programVo.getProgramCategoryId());
         if (Objects.nonNull(programCategory)) {
             programVo.setProgramCategoryName(programCategory.getName());
@@ -696,19 +754,19 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
         if (Objects.nonNull(parentProgramCategory)) {
             programVo.setParentProgramCategoryName(parentProgramCategory.getName());
         }
-        
+
         LambdaQueryWrapper<ProgramShowTime> programShowTimeLambdaQueryWrapper =
                 Wrappers.lambdaQuery(ProgramShowTime.class).eq(ProgramShowTime::getProgramId, programId);
         ProgramShowTime programShowTime = Optional.ofNullable(programShowTimeMapper.selectOne(programShowTimeLambdaQueryWrapper))
                 .orElseThrow(() -> new DaMaiFrameException(BaseCode.PROGRAM_SHOW_TIME_NOT_EXIST));
-        
+
         programVo.setShowTime(programShowTime.getShowTime());
         programVo.setShowDayTime(programShowTime.getShowDayTime());
         programVo.setShowWeekTime(programShowTime.getShowWeekTime());
-        
+
         return programVo;
     }
-    
+
     private void preloadTicketUserList(Integer highHeat){
         if (Objects.equals(highHeat, BusinessStatus.NO.getCode())) {
             return;
@@ -737,13 +795,13 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
                         log.warn("userClient.select 调用失败 apiResponse : {}",JSON.toJSONString(apiResponse));
                     }
                 }
-                
+
             }catch (Exception e) {
                 log.error("预热加载购票人列表失败",e);
             }
         });
     }
-    
+
     private void preloadAccountOrderCount(Long programId){
         String userId = BaseParameterHolder.getParameter(USER_ID);
         String code = BaseParameterHolder.getParameter(CODE);
@@ -777,16 +835,16 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
             }
         });
     }
-    
+
     public ProgramCategory getProgramCategoryMultipleCache(Long programCategoryId){
         return localCacheProgramCategory.get(String.valueOf(programCategoryId),
                 key -> getProgramCategory(programCategoryId));
     }
-    
+
     public ProgramCategory getProgramCategory(Long programCategoryId){
         return programCategoryService.getProgramCategory(programCategoryId);
     }
-    
+
     @Transactional(rollbackFor = Exception.class)
     public Boolean resetExecute(ProgramResetExecuteDto programResetExecuteDto) {
         Long programId = programResetExecuteDto.getProgramId();
@@ -811,7 +869,7 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
                 if (!(remainNumber.equals(totalNumber))) {
                     TicketCategory ticketCategoryUpdate = new TicketCategory();
                     ticketCategoryUpdate.setRemainNumber(totalNumber);
-                    
+
                     LambdaUpdateWrapper<TicketCategory> ticketCategoryUpdateWrapper =
                             Wrappers.lambdaUpdate(TicketCategory.class)
                                     .eq(TicketCategory::getProgramId, programId)
@@ -824,7 +882,7 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
         delLocalCache(programId);
         return true;
     }
-    
+
     public void delRedisData(Long programId){
         Program program = Optional.ofNullable(programMapper.selectById(programId))
                 .orElseThrow(() -> new DaMaiFrameException(BaseCode.PROGRAM_NOT_EXIST));
@@ -839,7 +897,7 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
         keys.add(RedisKeyBuild.createRedisKey(RedisKeyManage.PROGRAM_TICKET_REMAIN_NUMBER_HASH_RESOLUTION, programId,"*").getRelKey());
         programDelCacheData.del(keys,new String[]{});
     }
-    
+
     public Boolean invalid(final ProgramInvalidDto programInvalidDto) {
         Program program = new Program();
         program.setId(programInvalidDto.getId());
@@ -854,17 +912,41 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
             return false;
         }
     }
-    
+
     public ProgramVo localDetail(final ProgramGetDto programGetDto) {
         return localCacheProgram.getCache(String.valueOf(programGetDto.getId()));
     }
-    
+
     public void delLocalCache(Long programId){
         log.info("删除本地缓存 programId : {}",programId);
         localCacheProgram.del(RedisKeyBuild.createRedisKey(RedisKeyManage.PROGRAM, programId).getRelKey());
         localCacheProgramGroup.del(RedisKeyBuild.createRedisKey(RedisKeyManage.PROGRAM_GROUP, programId).getRelKey());
         localCacheProgramShowTime.del(RedisKeyBuild.createRedisKey(RedisKeyManage.PROGRAM_SHOW_TIME, programId).getRelKey());
         localCacheTicketCategory.del(programId);
+    }
+
+    public Boolean dataPreheat(ProgramDataPreheatDto programDataPreheatDto){
+        ProgramResetExecuteDto programResetExecuteDto = new ProgramResetExecuteDto();
+        programResetExecuteDto.setProgramId(programDataPreheatDto.getProgramId());
+        //先把数据库中的座位和库存数据重置，然后删除本地缓存和redis缓存
+        programService.resetExecute(programResetExecuteDto);
+
+        ProgramGetDto programGetDto = new ProgramGetDto();
+        programGetDto.setId(programDataPreheatDto.getProgramId());
+        //再将节目相关的数据预热到缓存中，包括本地缓存和redis缓存
+        ProgramVo programVo = getDetailV2(programGetDto);
+        if (Objects.isNull(programVo)) {
+            return false;
+        }
+        //再将座位和库存数据预热到redis缓存中
+        Date showDayTime = programVo.getShowDayTime();
+        List<TicketCategoryVo> ticketCategoryVoList = programVo.getTicketCategoryVoList();
+        for (TicketCategoryVo ticketCategoryVo : ticketCategoryVoList) {
+            seatService.selectSeatResolution(programDataPreheatDto.getProgramId(),
+                    ticketCategoryVo.getId(), DateUtils.countBetweenSecond(DateUtils.now(), showDayTime), TimeUnit.SECONDS);
+            ticketCategoryService.getRedisRemainNumberResolution(programDataPreheatDto.getProgramId(), ticketCategoryVo.getId());
+        }
+        return true;
     }
 }
 
