@@ -8,8 +8,10 @@ local placeholder_seat_lock_hash_key = KEYS[3]
 local program_id = KEYS[4]
 -- 记录的key
 local record_hash_key = KEYS[5]
--- 记录id
+-- 记录标识
 local identifier_id = KEYS[6]
+-- 记录类型
+local record_type = KEYS[7]
 -- 要购买的票档 包括票档id和票档数量
 local ticket_count_list = cjson.decode(ARGV[1])
 -- 过滤后符合条件可以购买的座位集合
@@ -132,6 +134,7 @@ if (type == 1) then
                     end
                     -- 座位记录
                     local seat_record = {}
+                    seat_record.ticketCategoryId = seat_vo.ticketCategoryId
                     seat_record.seatId = id
                     seat_record.beforeStatus = seat_vo.sellStatus
                     seat_record.afterStatus = lock_status
@@ -195,6 +198,7 @@ if (type == 2) then
             end
             -- 座位记录
             local seat_record = {}
+            seat_record.ticketCategoryId = purchase_seat.ticketCategoryId
             seat_record.seatId = purchase_seat.id
             seat_record.beforeStatus = purchase_seat.sellStatus
             seat_record.afterStatus = lock_status
@@ -249,7 +253,7 @@ local time = redis.call("time")
 local currentTimeMillis = (time[1] * 1000) + math.floor(time[2] / 1000)
 -- 记录流水的完整体
 local purchase_record = {
-    operationType = 'reduce',
+    recordType = record_type,
     timestamp = currentTimeMillis,
     ticketCategoryRecordList = ticket_category_record_list
 

@@ -19,15 +19,15 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+
 @AllArgsConstructor
 public class RedisCacheImpl implements RedisCache {
-    
+
     private StringRedisTemplate redisTemplate;
 
     @Override
@@ -41,7 +41,7 @@ public class RedisCacheImpl implements RedisCache {
         }
         return getComplex(cachedValue, clazz);
     }
-    
+
     @Override
     public <T> T get(RedisKeyBuild redisKeyBuild, Class<T> clazz, Supplier<T> supplier, long ttl, TimeUnit timeUnit) {
         T t = get(redisKeyBuild, clazz);
@@ -72,7 +72,7 @@ public class RedisCacheImpl implements RedisCache {
         }
         return JSON.parseArray(valueStr, clazz);
     }
-    
+
     @Override
     public <T> List<T> getValueIsList(RedisKeyBuild redisKeyBuild, Class<T> clazz, Supplier<List<T>> supplier, long ttl, TimeUnit timeUnit) {
         CacheUtil.checkNotBlank(redisKeyBuild);
@@ -95,7 +95,7 @@ public class RedisCacheImpl implements RedisCache {
         CacheUtil.checkNotEmpty(keyList);
         List<String> batchKey = CacheUtil.getBatchKey(keyList);
         List<String> list = redisTemplate.opsForValue().multiGet(batchKey);
-        
+
         return CacheUtil.optimizeRedisList(redisTemplate.opsForValue().multiGet(CacheUtil.optimizeRedisList(list)));
     }
 
@@ -112,7 +112,7 @@ public class RedisCacheImpl implements RedisCache {
         String key = redisKeyBuild.getRelKey();
         return redisTemplate.getExpire(key);
     }
-    
+
     @Override
     public Long getExpire(RedisKeyBuild redisKeyBuild,TimeUnit timeUnit) {
         CacheUtil.checkNotBlank(redisKeyBuild);
@@ -164,7 +164,7 @@ public class RedisCacheImpl implements RedisCache {
         String key = redisKeyBuild.getRelKey();
         return redisTemplate.type(key);
     }
-    
+
     @Override
     public void set(RedisKeyBuild redisKeyBuild, Object object) {
         CacheUtil.checkNotBlank(redisKeyBuild);
@@ -332,7 +332,7 @@ public class RedisCacheImpl implements RedisCache {
         String key = redisKeyBuild.getRelKey();
         List<Object> objHashKeys = new ArrayList<>(hashKeys);
         List<Object> multiGetObj = redisTemplate.opsForHash().multiGet(key, objHashKeys);
-        
+
         if (CacheUtil.checkRedisListIsEmpty(multiGetObj)){
             return new ArrayList<>();
         }
@@ -357,11 +357,21 @@ public class RedisCacheImpl implements RedisCache {
 
         return parseObjects(valuesObj, clazz);
     }
-    
+
     @Override
     public <T> Map<String,T> getAllMapForHash(RedisKeyBuild redisKeyBuild, Class<T> clazz) {
         CacheUtil.checkNotBlank(redisKeyBuild);
         String key = redisKeyBuild.getRelKey();
+        Map<Object, Object> entries = redisTemplate.opsForHash().entries(key);
+        Map<String,T> map = new HashMap<>(64);
+        entries.forEach((k,v) -> {
+            map.put(String.valueOf(k),getComplex(v, clazz));
+        });
+        return map;
+    }
+
+    @Override
+    public <T> Map<String,T> getAllMapForHash(String key, Class<T> clazz) {
         Map<Object, Object> entries = redisTemplate.opsForHash().entries(key);
         Map<String,T> map = new HashMap<>(64);
         entries.forEach((k,v) -> {
@@ -587,7 +597,7 @@ public class RedisCacheImpl implements RedisCache {
         String key = redisKeyBuild.getRelKey();
         redisTemplate.delete(key);
     }
-    
+
 
     @Override
     public Long delForHash(RedisKeyBuild redisKeyBuild, String hashKey) {
@@ -1212,13 +1222,11 @@ public class RedisCacheImpl implements RedisCache {
         }
         if (clazz.isAssignableFrom(String.class)) {
             List<T> resultList = (List<T>) sources.stream()
-                    .filter(Objects::nonNull)
                     .map(each -> each instanceof String ? (String) each : JSON.toJSONString(each))
                     .collect(Collectors.toList());
             return resultList;
         }
         List<T> resultList = (List<T>) sources.stream()
-                .filter(Objects::nonNull)
                 .map(each -> each instanceof String ? JSON.parseObject((String) each, CacheUtil.buildType(clazz)) : null)
                 .collect(Collectors.toList());
         return resultList;

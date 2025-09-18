@@ -14,6 +14,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
+
 public interface RedisCache {
 
     /**
@@ -25,7 +26,7 @@ public interface RedisCache {
      * @return T 普通对象
      */
     <T> T get(RedisKeyBuild redisKeyBuild, Class<T> clazz);
-    
+
     /**
      * 获取字符串对象(如果缓存中不存在，则执行给定的supplier接口)
      *
@@ -57,7 +58,7 @@ public interface RedisCache {
      * @return List<T>
      */
     <T> List<T> getValueIsList(RedisKeyBuild redisKeyBuild, Class<T> clazz);
-    
+
     /**
      * 获取字符串对象, 并且字符串中是集合内容(如果缓存中不存在，则执行给定的supplier接口)
      *
@@ -121,7 +122,7 @@ public interface RedisCache {
      * @return 超时时间
      */
     Long getExpire(RedisKeyBuild redisKeyBuild);
-    
+
     /**
      * 获取key超时时间
      *
@@ -386,7 +387,7 @@ public interface RedisCache {
      * @return
      */
     <T> List<T> getAllForHash(RedisKeyBuild redisKeyBuild, Class<T> clazz);
-    
+
     /**
      * 谨慎使用！
      * 获取 Hash Key 下所有值，返回值为map
@@ -397,6 +398,18 @@ public interface RedisCache {
      * @return
      */
     <T> Map<String,T> getAllMapForHash(RedisKeyBuild redisKeyBuild, Class<T> clazz);
+
+    /**
+     * 谨慎使用！
+     * 获取 Hash Key 下所有值，返回值为map
+     *
+     * @param key 缓存key
+     * @param clazz 类型
+     * @param <T> 泛型
+     * @return
+     */
+    <T> Map<String,T> getAllMapForHash(String key, Class<T> clazz);
+
     /**
      * 判断hash中 key是否存在
      *
