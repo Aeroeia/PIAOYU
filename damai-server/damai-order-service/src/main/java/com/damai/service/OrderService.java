@@ -18,6 +18,8 @@ import com.damai.core.RedisKeyManage;
 import com.damai.domain.OrderCreateDomain;
 import com.damai.domain.OrderCreateMq;
 import com.damai.domain.ProgramRecord;
+import com.damai.domain.SeatRecord;
+import com.damai.domain.TicketCategoryRecord;
 import com.damai.dto.*;
 import com.damai.entity.Order;
 import com.damai.entity.OrderTicketUser;
@@ -60,7 +62,6 @@ import static com.damai.constant.Constant.GLIDE_LINE;
 import static com.damai.core.DistributedLockConstants.*;
 import static com.damai.core.RepeatExecuteLimitConstants.CANCEL_PROGRAM_ORDER;
 import static com.damai.core.RepeatExecuteLimitConstants.CREATE_PROGRAM_ORDER_MQ;
-
 
 @Slf4j
 @Service
@@ -779,8 +780,22 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
                     if (CollectionUtil.isEmpty(orderTicketUserRecordList)) {
                         continue;
                     }
+                    int ticketCategoryRecordCount = orderTicketUserRecordList.size();
+                    List<TicketCategoryRecord> ticketCategoryRecordList = programRecord.getTicketCategoryRecordList();
+                    int seatRecordCount = ticketCategoryRecordList.stream()
+                            .mapToInt(record -> record.getSeatRecordList().size())
+                            .sum();
+                    int successCount = 0;
                     for (OrderTicketUserRecord orderTicketUserRecord : orderTicketUserRecordList) {
                         System.out.println("orderTicketUserRecord = " + orderTicketUserRecord);
+                        for (TicketCategoryRecord ticketCategoryRecord : ticketCategoryRecordList) {
+                            List<SeatRecord> seatRecordList = ticketCategoryRecord.getSeatRecordList();
+                            for (SeatRecord seatRecord : seatRecordList) {
+                                if (Objects.equals(seatRecord.getSeatId(),orderTicketUserRecord.getSeatId())) {
+                                    successCount++;
+                                }
+                            }
+                        }
                     }
                 }
             }
