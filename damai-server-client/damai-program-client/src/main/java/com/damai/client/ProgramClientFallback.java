@@ -9,7 +9,6 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 
-
 @Component
 public class ProgramClientFallback implements ProgramClient {
 
@@ -20,6 +19,11 @@ public class ProgramClientFallback implements ProgramClient {
 
     @Override
     public ApiResponse<List<TicketCategoryDetailVo>> selectList(final TicketCategoryListDto ticketCategoryDto) {
+        return ApiResponse.error(BaseCode.SYSTEM_ERROR);
+    }
+
+    @Override
+    public ApiResponse<List<Long>> allList() {
         return ApiResponse.error(BaseCode.SYSTEM_ERROR);
     }
 }
