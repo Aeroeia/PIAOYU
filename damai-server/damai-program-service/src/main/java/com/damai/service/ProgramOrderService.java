@@ -58,7 +58,6 @@ import java.util.stream.Collectors;
 import static com.damai.constant.Constant.GLIDE_LINE;
 import static com.damai.service.constant.ProgramOrderConstant.ORDER_TABLE_COUNT;
 
-
 @Slf4j
 @Service
 public class ProgramOrderService {
@@ -201,7 +200,9 @@ public class ProgramOrderService {
     }
 
     public String createNewAsync(ProgramOrderCreateDto programOrderCreateDto) {
+        //操作redis
         CreateOrderTemporaryData createOrderTemporaryData = createOrderOperateProgramCacheResolution(programOrderCreateDto);
+        //发送kafka
         return doCreateV2(programOrderCreateDto,createOrderTemporaryData);
     }
 
@@ -229,8 +230,6 @@ public class ProgramOrderService {
         JSONArray jsonArray = new JSONArray();
         //添加座位数据集合
         JSONArray addSeatDatajsonArray = new JSONArray();
-        //记录的标识
-        Long identifierId = uidGenerator.getUid();
         if (CollectionUtil.isNotEmpty(seatDtoList)) {
             keys.add("1");
             Map<Long, List<SeatDto>> seatTicketCategoryDtoCount = seatDtoList.stream()
@@ -281,6 +280,8 @@ public class ProgramOrderService {
         keys.add(String.valueOf(programOrderCreateDto.getProgramId()));
         //记录的key(占位符形式)
         keys.add(RedisKeyBuild.getRedisKey(RedisKeyManage.PROGRAM_RECORD));
+        //记录的标识
+        Long identifierId = uidGenerator.getUid();
         //把记录的标识id放进去
         keys.add(RecordType.REDUCE.getValue() + GLIDE_LINE + identifierId + GLIDE_LINE + programOrderCreateDto.getUserId());
         //记录的类型
