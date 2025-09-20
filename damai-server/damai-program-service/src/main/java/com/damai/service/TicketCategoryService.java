@@ -10,7 +10,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.damai.core.RedisKeyManage;
 import com.damai.dto.TicketCategoryAddDto;
 import com.damai.dto.TicketCategoryDto;
-import com.damai.dto.TicketCategoryListByProgramDto;
+import com.damai.dto.TicketCategoryListDto;
 import com.damai.entity.TicketCategory;
 import com.damai.mapper.TicketCategoryMapper;
 import com.damai.redis.RedisCache;
@@ -39,25 +39,26 @@ import static com.damai.core.DistributedLockConstants.GET_TICKET_CATEGORY_LOCK;
 import static com.damai.core.DistributedLockConstants.REMAIN_NUMBER_LOCK;
 import static com.damai.core.DistributedLockConstants.TICKET_CATEGORY_LOCK;
 
+
 @Slf4j
 @Service
 public class TicketCategoryService extends ServiceImpl<TicketCategoryMapper, TicketCategory> {
-    
+
     @Autowired
     private UidGenerator uidGenerator;
-    
+
     @Autowired
     private RedisCache redisCache;
-    
+
     @Autowired
     private TicketCategoryMapper ticketCategoryMapper;
-    
+
     @Autowired
     private ServiceLockTool serviceLockTool;
-    
+
     @Autowired
     private LocalCacheTicketCategory localCacheTicketCategory;
-    
+
     @Transactional(rollbackFor = Exception.class)
     public Long add(TicketCategoryAddDto ticketCategoryAddDto) {
         TicketCategory ticketCategory = new TicketCategory();
@@ -66,21 +67,21 @@ public class TicketCategoryService extends ServiceImpl<TicketCategoryMapper, Tic
         ticketCategoryMapper.insert(ticketCategory);
         return ticketCategory.getId();
     }
-    
+
     public List<TicketCategoryVo> selectTicketCategoryListByProgramIdMultipleCache(Long programId, Date showTime){
-        return localCacheTicketCategory.getCache(programId,key -> selectTicketCategoryListByProgramId(programId, 
+        return localCacheTicketCategory.getCache(programId,key -> selectTicketCategoryListByProgramId(programId,
                 DateUtils.countBetweenSecond(DateUtils.now(),showTime), TimeUnit.SECONDS));
     }
-    
+
     @ServiceLock(lockType= LockType.Read,name = TICKET_CATEGORY_LOCK,keys = {"#programId"})
     public List<TicketCategoryVo> selectTicketCategoryListByProgramId(Long programId,Long expireTime,TimeUnit timeUnit){
-        List<TicketCategoryVo> ticketCategoryVoList = 
-                redisCache.getValueIsList(RedisKeyBuild.createRedisKey(RedisKeyManage.PROGRAM_TICKET_CATEGORY_LIST, 
+        List<TicketCategoryVo> ticketCategoryVoList =
+                redisCache.getValueIsList(RedisKeyBuild.createRedisKey(RedisKeyManage.PROGRAM_TICKET_CATEGORY_LIST,
                         programId), TicketCategoryVo.class);
         if (CollectionUtil.isNotEmpty(ticketCategoryVoList)) {
             return ticketCategoryVoList;
         }
-        RLock lock = serviceLockTool.getLock(LockType.Reentrant, GET_TICKET_CATEGORY_LOCK, 
+        RLock lock = serviceLockTool.getLock(LockType.Reentrant, GET_TICKET_CATEGORY_LOCK,
                 new String[]{String.valueOf(programId)});
         lock.lock();
         try {
@@ -103,13 +104,13 @@ public class TicketCategoryService extends ServiceImpl<TicketCategoryMapper, Tic
             lock.unlock();
         }
     }
-    
+
     @ServiceLock(lockType= LockType.Read,name = REMAIN_NUMBER_LOCK,keys = {"#programId","#ticketCategoryId"})
     public Map<String, Long> getRedisRemainNumberResolution(Long programId,Long ticketCategoryId){
         Map<String, Long> ticketCategoryRemainNumber =
                 redisCache.getAllMapForHash(RedisKeyBuild.createRedisKey(RedisKeyManage.PROGRAM_TICKET_REMAIN_NUMBER_HASH_RESOLUTION,
                         programId,ticketCategoryId), Long.class);
-        
+
         if (CollectionUtil.isNotEmpty(ticketCategoryRemainNumber)) {
             return ticketCategoryRemainNumber;
         }
@@ -135,17 +136,18 @@ public class TicketCategoryService extends ServiceImpl<TicketCategoryMapper, Tic
             lock.unlock();
         }
     }
-    
+
     public TicketCategoryDetailVo detail(TicketCategoryDto ticketCategoryDto) {
         TicketCategory ticketCategory = ticketCategoryMapper.selectById(ticketCategoryDto.getId());
         TicketCategoryDetailVo ticketCategoryDetailVo = new TicketCategoryDetailVo();
         BeanUtil.copyProperties(ticketCategory,ticketCategoryDetailVo);
         return ticketCategoryDetailVo;
     }
-    
-    public List<TicketCategoryDetailVo> selectListByProgram(TicketCategoryListByProgramDto ticketCategoryListByProgramDto) {
+
+    public List<TicketCategoryDetailVo> selectList(TicketCategoryListDto ticketCategoryDto) {
         List<TicketCategory> ticketCategorieList = ticketCategoryMapper.selectList(Wrappers.lambdaQuery(TicketCategory.class)
-                .eq(TicketCategory::getProgramId, ticketCategoryListByProgramDto.getProgramId()));
+                .eq(TicketCategory::getProgramId, ticketCategoryDto.getProgramId())
+                .in(TicketCategory::getId, ticketCategoryDto.getTicketCategoryIdList()));
         return ticketCategorieList.stream().map(ticketCategory -> {
             TicketCategoryDetailVo ticketCategoryDetailVo = new TicketCategoryDetailVo();
             BeanUtil.copyProperties(ticketCategory,ticketCategoryDetailVo);

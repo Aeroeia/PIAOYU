@@ -27,6 +27,7 @@ import com.damai.enums.*;
 import com.damai.exception.DaMaiFrameException;
 import com.damai.mapper.OrderMapper;
 import com.damai.mapper.OrderTicketUserMapper;
+import com.damai.mapper.OrderTicketUserRecordMapper;
 import com.damai.redis.RedisCache;
 import com.damai.redis.RedisKeyBuild;
 import com.damai.repeatexecutelimit.annotion.RepeatExecuteLimit;
@@ -106,6 +107,9 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
 
     @Autowired
     private ProgramClient programClient;
+
+    @Autowired
+    private OrderTicketUserRecordMapper orderTicketUserRecordMapper;
 
     @Transactional(rollbackFor = Exception.class)
     public String create(OrderCreateDto orderCreateDto) {
@@ -567,6 +571,7 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         data[1] = JSON.toJSONString(addSeatDatajsonArray);
         //恢复库存数据
         data[2] = JSON.toJSONString(jsonArray);
+        //座位id和对应的购票人id
         data[3] = JSON.toJSONString(seatIdAndTicketUserIdDomainList);
         //执行lua脚本
         orderProgramCacheResolutionOperate.programCacheReverseOperate(keys,data);
@@ -697,7 +702,7 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         List<TicketCategoryCountDto> ticketCountList = countMap.entrySet().stream()
                 .map(entry -> new TicketCategoryCountDto(entry.getKey(), entry.getValue()))
                 .toList();
-        //修改座位状态和扣减库存
+        //修改节目服务中的座位状态和扣减库存
         ReduceRemainNumberDto reduceRemainNumberDto = new ReduceRemainNumberDto();
         reduceRemainNumberDto.setProgramId(orderCreateMq.getProgramId());
         reduceRemainNumberDto.setSellStatus(SellStatus.LOCK.getCode());

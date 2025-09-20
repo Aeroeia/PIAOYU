@@ -1,5 +1,6 @@
 package com.damai.constant;
 
+import com.damai.enums.RecordType;
 
 public class Constant {
 
@@ -31,5 +32,11 @@ public class Constant {
     public static final String SPRING_INJECT_PREFIX_DISTINCTION_NAME = "${"+PREFIX_DISTINCTION_NAME+":"+DEFAULT_PREFIX_DISTINCTION_NAME+"}";
 
     public static final String SERVER_GRAY = "${spring.cloud.nacos.discovery.metadata.gray:false}";
+
+    public static final String REDUCE = RecordType.REDUCE.getValue();
+
+    public static final String CHANGE_STATUS = RecordType.CHANGE_STATUS.getValue();
+
+    public static final String INCREASE = RecordType.INCREASE.getValue();
 
 }

@@ -3,7 +3,7 @@ package com.damai.controller;
 import com.damai.common.ApiResponse;
 import com.damai.dto.TicketCategoryAddDto;
 import com.damai.dto.TicketCategoryDto;
-import com.damai.dto.TicketCategoryListByProgramDto;
+import com.damai.dto.TicketCategoryListDto;
 import com.damai.service.TicketCategoryService;
 import com.damai.vo.TicketCategoryDetailVo;
 import io.swagger.v3.oas.annotations.Operation;
@@ -17,30 +17,31 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+
 @RestController
 @RequestMapping("/ticket/category")
 @Tag(name = "ticket-category", description = "票档")
 public class TicketCategoryController {
-    
+
     @Autowired
     private TicketCategoryService ticketCategoryService;
-    
-    
+
+
     @Operation(summary  = "添加")
     @PostMapping(value = "/add")
     public ApiResponse<Long> add(@Valid @RequestBody TicketCategoryAddDto ticketCategoryAddDto) {
         return ApiResponse.ok(ticketCategoryService.add(ticketCategoryAddDto));
     }
-    
+
     @Operation(summary  = "查询详情")
     @PostMapping(value = "/detail")
     public ApiResponse<TicketCategoryDetailVo> detail(@Valid @RequestBody TicketCategoryDto ticketCategoryDto) {
         return ApiResponse.ok(ticketCategoryService.detail(ticketCategoryDto));
     }
-    
+
     @Operation(summary  = "查询集合")
-    @PostMapping(value = "/select/list/by/program")
-    public ApiResponse<List<TicketCategoryDetailVo>> selectListByProgram(@Valid @RequestBody TicketCategoryListByProgramDto ticketCategoryListByProgramDto) {
-        return ApiResponse.ok(ticketCategoryService.selectListByProgram(ticketCategoryListByProgramDto));
+    @PostMapping(value = "/select/list")
+    public ApiResponse<List<TicketCategoryDetailVo>> selectList(@Valid @RequestBody TicketCategoryListDto ticketCategoryDto) {
+        return ApiResponse.ok(ticketCategoryService.selectList(ticketCategoryDto));
     }
 }
