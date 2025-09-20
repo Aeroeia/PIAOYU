@@ -1,5 +1,7 @@
 package com.damai.enums;
 
+import java.util.Objects;
+
 
 public enum RecordType {
     /**
@@ -10,11 +12,11 @@ public enum RecordType {
     CHANGE_STATUS(0,"changeStatus","改变状态"),
 
     INCREASE(1,"increase","增加余票"),
-    
+
     ;
 
     private Integer code;
-    
+
     private String value;
 
     private String msg;
@@ -40,15 +42,15 @@ public enum RecordType {
     public void setMsg(String msg) {
         this.msg = msg;
     }
-    
+
     public String getValue() {
         return value;
     }
-    
+
     public void setValue(final String value) {
         this.value = value;
     }
-    
+
     public static String getMsg(Integer code) {
         for (RecordType re : RecordType.values()) {
             if (re.code.intValue() == code.intValue()) {
@@ -58,12 +60,21 @@ public enum RecordType {
         return "";
     }
 
-    public static RecordType getRc(Integer code) {
+    public static RecordType getRecordType(Integer code) {
         for (RecordType re : RecordType.values()) {
             if (re.code.intValue() == code.intValue()) {
                 return re;
             }
         }
         return null;
+    }
+
+    public static Integer getCodeByValue(String value) {
+        for (RecordType re : RecordType.values()) {
+            if (Objects.equals(re.value, value)) {
+                return re.code;
+            }
+        }
+        return Integer.MIN_VALUE;
     }
 }

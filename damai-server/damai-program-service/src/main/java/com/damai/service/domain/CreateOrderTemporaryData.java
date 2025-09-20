@@ -1,10 +1,11 @@
 package com.damai.service.domain;
 
-import com.damai.vo.SeatVo;
+import com.damai.domain.PurchaseSeat;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
 import java.util.List;
+
 
 @Data
 @AllArgsConstructor
@@ -18,6 +19,6 @@ public class CreateOrderTemporaryData {
     /**
      * 购买的座位
      * */
-    private List<SeatVo> purchaseSeatList;
+    private List<PurchaseSeat> purchaseSeatList;
 
 }

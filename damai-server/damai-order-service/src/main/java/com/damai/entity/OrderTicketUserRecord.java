@@ -20,12 +20,17 @@ public class OrderTicketUserRecord extends BaseTableData implements Serializable
      * 主键id
      */
     private Long id;
-    
+
     /**
      * 订单编号
      * */
     private Long orderNumber;
-    
+
+    /**
+     * 记录id
+     */
+    private Long identifierId;
+
     /**
      * 购票人订单id
      * */
@@ -50,12 +55,12 @@ public class OrderTicketUserRecord extends BaseTableData implements Serializable
      * 座位id
      */
     private Long seatId;
-    
+
     /**
      * 座位信息
      * */
     private String seatInfo;
-    
+
     /**
      * 节目票档id
      * */
@@ -70,7 +75,7 @@ public class OrderTicketUserRecord extends BaseTableData implements Serializable
      * 记录类型编码 -1:扣减余票 0:改变状态 1:增加余票
      */
     private Integer recordTypeCode;
-    
+
     /**
      * 记录类型值 -1:扣减余票(reduce) 0:改变状态(changeStatus) 1:增加余票(increase)
      * */
