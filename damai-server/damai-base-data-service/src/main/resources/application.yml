@@ -10,7 +10,7 @@ spring:
   main:
     allow-bean-definition-overriding: true
   mvc:
-    pathmatch:  
+    pathmatch:
       matching-strategy: ant_path_matcher
     servlet:
       load-on-startup: 1
@@ -19,7 +19,7 @@ spring:
       date-format: yyyy-MM-dd HH:mm:ss
       generator:
         WRITE_NUMBERS_AS_STRINGS: true
-  data:      
+  data:
     redis:
       database: 0
       host: 127.0.0.1
@@ -62,7 +62,7 @@ management:
     tags:
       application: ${spring.application.name}
   endpoints:
-    enabled-by-default: true 
+    enabled-by-default: true
     web:
       exposure:
         include: '*'
@@ -81,7 +81,7 @@ jasypt:
   encryptor:
     password: bgtjkjl!%^sdc
     algorithm: PBEWithMD5AndDES
-      
+
 
 springdoc:
   swagger-ui:
@@ -108,3 +108,4 @@ knife4j:
     language: zh_cn
     enable-version: true
     enable-swagger-models: true
+

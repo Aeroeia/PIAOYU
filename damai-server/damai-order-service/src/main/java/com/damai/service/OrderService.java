@@ -15,6 +15,7 @@ import com.damai.client.ProgramClient;
 import com.damai.client.UserClient;
 import com.damai.common.ApiResponse;
 import com.damai.core.RedisKeyManage;
+import com.damai.domain.DiscardOrder;
 import com.damai.domain.OrderCreateDomain;
 import com.damai.domain.OrderCreateMq;
 import com.damai.domain.SeatIdAndTicketUserIdDomain;
@@ -22,6 +23,7 @@ import com.damai.dto.AccountOrderCountDto;
 import com.damai.dto.NotifyDto;
 import com.damai.dto.OrderCancelDto;
 import com.damai.dto.OrderCreateDto;
+import com.damai.dto.OrderCreateTestDto;
 import com.damai.dto.OrderGetDto;
 import com.damai.dto.OrderListDto;
 import com.damai.dto.OrderPayCheckDto;
@@ -29,6 +31,7 @@ import com.damai.dto.OrderPayDto;
 import com.damai.dto.OrderTicketUserCreateDto;
 import com.damai.dto.PayDto;
 import com.damai.dto.ProgramOperateDataDto;
+import com.damai.dto.ProgramRecordTaskAddDto;
 import com.damai.dto.ReduceRemainNumberDto;
 import com.damai.dto.RefundDto;
 import com.damai.dto.TicketCategoryCountDto;
@@ -40,6 +43,7 @@ import com.damai.entity.OrderTicketUserAggregate;
 import com.damai.entity.OrderTicketUserRecord;
 import com.damai.enums.BaseCode;
 import com.damai.enums.BusinessStatus;
+import com.damai.enums.DiscardOrderReason;
 import com.damai.enums.OrderStatus;
 import com.damai.enums.PayBillStatus;
 import com.damai.enums.PayChannel;
@@ -48,11 +52,11 @@ import com.damai.enums.SellStatus;
 import com.damai.exception.DaMaiFrameException;
 import com.damai.mapper.OrderMapper;
 import com.damai.mapper.OrderTicketUserMapper;
+import com.damai.mapper.OrderTicketUserRecordMapper;
 import com.damai.redis.RedisCache;
 import com.damai.redis.RedisKeyBuild;
 import com.damai.repeatexecutelimit.annotion.RepeatExecuteLimit;
 import com.damai.request.CustomizeRequestWrapper;
-import com.damai.service.delaysend.DelayOperateProgramDataSend;
 import com.damai.service.properties.OrderProperties;
 import com.damai.servicelock.LockType;
 import com.damai.servicelock.annotion.ServiceLock;
@@ -99,6 +103,7 @@ import static com.damai.core.DistributedLockConstants.ORDER_PAY_NOTIFY_CHECK;
 import static com.damai.core.RepeatExecuteLimitConstants.CANCEL_PROGRAM_ORDER;
 import static com.damai.core.RepeatExecuteLimitConstants.CREATE_PROGRAM_ORDER_MQ;
 
+
 @Slf4j
 @Service
 public class OrderService extends ServiceImpl<OrderMapper, Order> {
@@ -138,13 +143,13 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
     private OrderService orderService;
 
     @Autowired
-    private DelayOperateProgramDataSend delayOperateProgramDataSend;
-
-    @Autowired
     private ServiceLockTool serviceLockTool;
 
     @Autowired
     private ProgramClient programClient;
+
+    @Autowired
+    private OrderTicketUserRecordMapper orderTicketUserRecordMapper;
 
     @Transactional(rollbackFor = Exception.class)
     public String create(OrderCreateDto orderCreateDto) {
@@ -480,7 +485,7 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         orderTicketUserSeatList.forEach((k,v) -> {
             seatMap.put(k,v.stream().map(OrderTicketUser::getSeatId).collect(Collectors.toList()));
         });
-        //更新缓存相关数据
+        //更新缓存和节目库相关数据
         updateProgramRelatedDataResolution(programId,seatMap,orderStatus,order.getIdentifierId(),order.getUserId(),seatIdAndTicketUserIdDomainList);
     }
 
@@ -608,9 +613,7 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         data[2] = JSON.toJSONString(jsonArray);
         //座位id和对应的购票人id
         data[3] = JSON.toJSONString(seatIdAndTicketUserIdDomainList);
-        //执行lua脚本
-        orderProgramCacheResolutionOperate.programCacheReverseOperate(keys,data);
-        //更新节目服务的相关数据（通过延迟队列）
+        //更新节目服务的相关数据
         if (Objects.equals(orderStatus.getCode(), OrderStatus.PAY.getCode()) ||
                 Objects.equals(orderStatus.getCode(), OrderStatus.CANCEL.getCode())) {
             ProgramOperateDataDto programOperateDataDto = new ProgramOperateDataDto();
@@ -620,8 +623,13 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
             //如果是支付操作，那么座位状态就改为已售卖，如果是取消操作，那么座位状态就改为未售卖
             programOperateDataDto.setSellStatus(Objects.equals(orderStatus.getCode(), OrderStatus.PAY.getCode())
                     ? SellStatus.SOLD.getCode() : SellStatus.NO_SOLD.getCode());
-            delayOperateProgramDataSend.sendMessage(JSON.toJSONString(programOperateDataDto));
+            ApiResponse<Boolean> programApiResponse = programClient.operateProgramData(programOperateDataDto);
+            if (!Objects.equals(programApiResponse.getCode(), BaseCode.SUCCESS.getCode())) {
+                throw new DaMaiFrameException(programApiResponse);
+            }
         }
+        //执行lua脚本
+        orderProgramCacheResolutionOperate.programCacheReverseOperate(keys,data);
     }
 
     public List<OrderListVo> selectList(OrderListDto orderListDto) {
@@ -745,8 +753,12 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         reduceRemainNumberDto.setTicketCategoryCountDtoList(ticketCountList);
         ApiResponse<Boolean> programApiResponse = programClient.operateSeatLockAndTicketCategoryRemainNumber(reduceRemainNumberDto);
         if (!Objects.equals(programApiResponse.getCode(), BaseCode.SUCCESS.getCode())) {
+            //将因为修改节目服务余票和座位失败，导致丢弃的订单放入redis中
+            redisCache.leftPushForList(RedisKeyBuild.createRedisKey(RedisKeyManage.DISCARD_ORDER,
+                    orderCreateMq.getProgramId()),new DiscardOrder(orderCreateMq, DiscardOrderReason.MODIFY_PROGRAM_REMAIN_NUMBER_SEAT_FAIL.getCode()));
             throw new DaMaiFrameException(programApiResponse);
         }
+        //真正地创建订单
         String orderNumber = createByMq(orderCreateMq);
         redisCache.set(RedisKeyBuild.createRedisKey(RedisKeyManage.ORDER_MQ,orderNumber),orderNumber,1, TimeUnit.MINUTES);
         return orderNumber;
@@ -775,5 +787,52 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
     public void delOrderAndOrderTicketUser(){
         orderMapper.relDelOrder();
         orderTicketUserMapper.relDelOrderTicketUser();
+    }
+    @Transactional(rollbackFor = Exception.class)
+    public boolean test(OrderCreateTestDto orderCreateTestDto){
+        long orderNumber = uidGenerator.getOrderNumber(orderCreateTestDto.getUserId(), 2);
+        OrderTicketUserRecord orderTicketUserRecord = new OrderTicketUserRecord();
+        orderTicketUserRecord.setId(uidGenerator.getUid());
+        orderTicketUserRecord.setOrderNumber(orderNumber);
+        orderTicketUserRecord.setTicketUserOrderId(uidGenerator.getUid());
+        orderTicketUserRecord.setProgramId(orderCreateTestDto.getProgramId());
+        orderTicketUserRecord.setUserId(orderCreateTestDto.getUserId());
+        orderTicketUserRecord.setTicketUserId(uidGenerator.getUid());
+        orderTicketUserRecord.setSeatId(1L);
+        orderTicketUserRecord.setIdentifierId(uidGenerator.getUid());
+        orderTicketUserRecordMapper.insert(orderTicketUserRecord);
+
+        ProgramRecordTaskAddDto programRecordTaskAddDto = new ProgramRecordTaskAddDto();
+        programRecordTaskAddDto.setProgramId(orderCreateTestDto.getProgramId());
+        programClient.add(programRecordTaskAddDto);
+
+        if ("1".equals(orderCreateTestDto.getHaveException())) {
+            throw new DaMaiFrameException("模拟异常");
+        }
+        return true;
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public boolean testV2(OrderCreateTestDto orderCreateTestDto){
+        long orderNumber = uidGenerator.getOrderNumber(orderCreateTestDto.getUserId(), 2);
+        OrderTicketUserRecord orderTicketUserRecord = new OrderTicketUserRecord();
+        orderTicketUserRecord.setId(uidGenerator.getUid());
+        orderTicketUserRecord.setOrderNumber(orderNumber);
+        orderTicketUserRecord.setTicketUserOrderId(uidGenerator.getUid());
+        orderTicketUserRecord.setProgramId(orderCreateTestDto.getProgramId());
+        orderTicketUserRecord.setUserId(orderCreateTestDto.getUserId());
+        orderTicketUserRecord.setTicketUserId(uidGenerator.getUid());
+        orderTicketUserRecord.setSeatId(1L);
+        orderTicketUserRecord.setIdentifierId(uidGenerator.getUid());
+        orderTicketUserRecordMapper.insert(orderTicketUserRecord);
+
+        ProgramRecordTaskAddDto programRecordTaskAddDto = new ProgramRecordTaskAddDto();
+        programRecordTaskAddDto.setProgramId(orderCreateTestDto.getProgramId());
+        programClient.add(programRecordTaskAddDto);
+
+        if ("1".equals(orderCreateTestDto.getHaveException())) {
+            throw new DaMaiFrameException("模拟异常");
+        }
+        return true;
     }
 }

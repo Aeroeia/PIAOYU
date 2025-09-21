@@ -1,6 +1,8 @@
 package com.damai.client;
 
 import com.damai.common.ApiResponse;
+import com.damai.dto.ProgramOperateDataDto;
+import com.damai.dto.ProgramRecordTaskAddDto;
 import com.damai.dto.ProgramRecordTaskListDto;
 import com.damai.dto.ProgramRecordTaskUpdateDto;
 import com.damai.dto.ReduceRemainNumberDto;
@@ -38,6 +40,16 @@ public class ProgramClientFallback implements ProgramClient {
 
     @Override
     public ApiResponse<Integer> update(final ProgramRecordTaskUpdateDto programRecordTaskUpdateDto) {
+        return ApiResponse.error(BaseCode.SYSTEM_ERROR);
+    }
+
+    @Override
+    public ApiResponse<Integer> add(final ProgramRecordTaskAddDto orderTicketUserRecordAddDto) {
+        return ApiResponse.error(BaseCode.SYSTEM_ERROR);
+    }
+
+    @Override
+    public ApiResponse<Boolean> operateProgramData(final ProgramOperateDataDto programOperateDataDto) {
         return ApiResponse.error(BaseCode.SYSTEM_ERROR);
     }
 }

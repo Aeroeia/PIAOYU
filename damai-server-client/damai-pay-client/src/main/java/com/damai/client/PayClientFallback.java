@@ -10,24 +10,26 @@ import com.damai.vo.NotifyVo;
 import com.damai.vo.TradeCheckVo;
 import org.springframework.stereotype.Component;
 
+
 @Component
 public class PayClientFallback implements PayClient{
-    
+
     @Override
     public ApiResponse<String> commonPay(final PayDto payDto) {
         return ApiResponse.error(BaseCode.SYSTEM_ERROR);
     }
-    
+
     @Override
     public ApiResponse<NotifyVo> notify(final NotifyDto notifyDto) {
         return ApiResponse.error(BaseCode.SYSTEM_ERROR);
     }
-    
+
+
     @Override
     public ApiResponse<TradeCheckVo> tradeCheck(final TradeCheckDto tradeCheckDto) {
         return ApiResponse.error(BaseCode.SYSTEM_ERROR);
     }
-    
+
     @Override
     public ApiResponse<String> refund(final RefundDto dto) {
         return ApiResponse.error(BaseCode.SYSTEM_ERROR);

@@ -14,7 +14,7 @@
 
     <name>customize-service</name>
     <description>定制服务</description>
-    
+
     <dependencies>
         <dependency>
             <groupId>com.example</groupId>
@@ -129,7 +129,7 @@
             <artifactId>spring-cloud-starter-loadbalancer</artifactId>
         </dependency>
     </dependencies>
-    
+
     <build>
         <plugins>
             <plugin>

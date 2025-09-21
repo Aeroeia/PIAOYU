@@ -3,7 +3,9 @@ package com.damai.service;
 import com.baidu.fsg.uid.UidGenerator;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.damai.client.ApiDataClient;
 import com.damai.core.RedisKeyManage;
+import com.damai.dto.AddApiDataDto;
 import com.damai.dto.ChannelDataAddDto;
 import com.damai.dto.GetChannelDataByCodeDto;
 import com.damai.entity.ChannelTableData;
@@ -20,20 +22,22 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
-
 @Service
 @Slf4j
 public class ChannelDataService {
-    
+
     @Autowired
     private ChannelDataMapper channelDataMapper;
-    
+
     @Autowired
     private UidGenerator uidGenerator;
-    
+
     @Autowired
-    private RedisCache redisCache; 
-    
+    private RedisCache redisCache;
+
+    @Autowired
+    private ApiDataClient apiDataClient;
+
     public GetChannelDataVo getByCode(GetChannelDataByCodeDto dto){
         GetChannelDataVo getChannelDataVo = new GetChannelDataVo();
         LambdaQueryWrapper<ChannelTableData> wrapper = Wrappers.lambdaQuery(ChannelTableData.class)
@@ -44,7 +48,7 @@ public class ChannelDataService {
         });
         return getChannelDataVo;
     }
-    
+
     @Transactional(rollbackFor = Exception.class)
     public void add(ChannelDataAddDto channelDataAddDto) {
         ChannelTableData channelData = new ChannelTableData();
@@ -54,10 +58,21 @@ public class ChannelDataService {
         channelDataMapper.insert(channelData);
         addRedisChannelData(channelData);
     }
-    
+
     private void addRedisChannelData(ChannelTableData channelData){
         GetChannelDataVo getChannelDataVo = new GetChannelDataVo();
         BeanUtils.copyProperties(channelData,getChannelDataVo);
         redisCache.set(RedisKeyBuild.createRedisKey(RedisKeyManage.CHANNEL_DATA,getChannelDataVo.getCode()),getChannelDataVo);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public void test(final ChannelDataAddDto channelDataAddDto) {
+        add(channelDataAddDto);
+        AddApiDataDto apiDataDto = new AddApiDataDto();
+        apiDataDto.setHeadVersion("1.0");
+        apiDataClient.add(apiDataDto);
+        if ("2".equals(channelDataAddDto.getCode())) {
+            throw new RuntimeException("测试异常");
+        }
     }
 }
