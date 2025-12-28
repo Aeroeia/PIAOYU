@@ -1,299 +1,4 @@
-#  	 用户注册业务
-
-![img](assets/1723689547717-cf815238-633e-4fc9-afc5-d33b530aebbd.png)
-
-**关键组件：**
-
-1. lua脚本
-2. 验证码组件
-3. 校验树
-4. 布隆过滤器
-
-## 校验操作
-
-```
-检查是否需要验证码：无参数
-获取验证码：
-captchaType: 验证码类型（如blockPuzzle滑块、clickWord点选）
-验证验证码：
-captchaType: 验证码类型
-pointJson: 用户操作坐标或距离（可能经过AES加密）
-token: 验证码唯一标识
-注册时二次验证：
-captchaId: 验证码ID
-captchaVerification: 验证码验证结果（用于后端二次校验）
-```
-
-1. 用户发起注册请求
-   -> 业务服务生成 captchaId
-   -> 返回 captchaId 给前端
-2. 前端请求获取验证码 
-   -> 验证码服务生成验证码和 token
-   -> 返回验证码图片和 token 给前端
-
-所需参数：
-
-- RemoteAddr(浏览器自带)
-
-  ```java
-   RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
-          assert requestAttributes != null;
-          HttpServletRequest request = ((ServletRequestAttributes) requestAttributes).getRequest();
-          captchaVO.setBrowserInfo(RemoteUtil.getRemoteId(request));
-  ```
-
-- ClientUid(使用 Md5Util.md5() 方法对 browserInfo 进行 MD5 加密，作为 ClientUid或者通过前端手动传入的ClientUid) 作验证码重试次数限流
-
-  ```java
-  protected String getValidateClientId(CaptchaVO req){
-      	// 以服务端获取的客户端标识 做识别标志
-  		if(StringUtils.isNotEmpty(req.getBrowserInfo())){
-  			return Md5Util.md5(req.getBrowserInfo());
-  		}
-  		// 以客户端Ui组件id做识别标志
-  		if(StringUtils.isNotEmpty(req.getClientUid())){
-  			return req.getClientUid();
-  		}
-      	return null;
-  	}
-  ```
-
-- type(前端传入验证码类型)
-
-  ```java
-  public ResponseModel get(CaptchaVO captchaVO) {
-          if (captchaVO == null) {
-              return RepCodeEnum.NULL_ERROR.parseError("captchaVO");
-          }
-          if (StringUtils.isEmpty(captchaVO.getCaptchaType())) {
-              return RepCodeEnum.NULL_ERROR.parseError("类型");
-          }
-          return getService(captchaVO.getCaptchaType()).get(captchaVO);
-      }
-  ```
-
-3. 用户完成验证码验证 
-   -> 前端提交 token 和验证结果给业务服务
-
-后端将token+坐标信息、value加密组合作为key token作为value存入redis用于二次校验
-
-> 将 token 和坐标信息用 AES 加密生成 value
-> 以 REDIS_SECOND_CAPTCHA_KEY 为前缀，将加密后的 value 作为键，token 作为值存储到缓存中
-> 设置过期时间为 3 分钟 (EXPIRE_SIN_THREE)
-> 将加密后的 value 设置为 captchaVerification 返回给前端
-
-返回CaptchaVerification
-
-4. 用户提交注册请求
-   -> 前端提交 captchaId 和CaptchaVerification
-   -> 业务服务通过 captchaId 关联并验证验证码
-
-```java
-@Override
-public ResponseModel verification(CaptchaVO captchaVO) {
-    if (captchaVO == null) {
-        return RepCodeEnum.NULL_ERROR.parseError("captchaVO");
-    }
-    if (StringUtils.isEmpty(captchaVO.getCaptchaVerification())) {
-        return RepCodeEnum.NULL_ERROR.parseError("二次校验参数");
-    }
-    try {
-        String codeKey = String.format(REDIS_SECOND_CAPTCHA_KEY, captchaVO.getCaptchaVerification());
-        if (!CaptchaServiceFactory.getCache(cacheType).exists(codeKey)) {
-            return ResponseModel.errorMsg(RepCodeEnum.API_CAPTCHA_INVALID);
-        }
-        //二次校验取值后，即刻失效
-        CaptchaServiceFactory.getCache(cacheType).delete(codeKey);
-    } catch (Exception e) {
-        logger.error("验证码坐标解析失败", e);
-        return ResponseModel.errorMsg(e.getMessage());
-    }
-    return ResponseModel.success();
-}
-```
-
-以传入的 captchaVerification 作为键，构造缓存键 codeKey
-
-- 检查该键在缓存中是否存在
-
-- 如果存在，则删除该键（一次性使用，即刻失效）
-
-- 返回验证成功结果
-
-![image-20250917200914185](assets/image-20250917200914185.png)
-
-------
-
 # 节目服务
-
-## 主页节目查询
-
-```java
-@Operation(summary  = "查询主页列表")
-    @PostMapping(value = "/home/list")
-    public ApiResponse<List<ProgramHomeVo>> selectHomeList(@Valid @RequestBody ProgramListDto programListDto) {
-        return ApiResponse.ok(programService.selectHomeList(programListDto));
-    }
-```
-
-**前端传入参数**
-
-```java
-areaId（可选）：所在区域ID
-parentProgramCategoryIds（必需）：父节目类型ID集合（最多4个）
-```
-
-优先查询es，es存放了完整的vo数据，如果没命中则查询数据库进行数据拼接
-
-**查询条件**
-
-- 按区域筛选：如果指定了 areaId，则筛选该区域的节目
-- 按主要节目筛选：如果未指定 areaId，则只查询标记为"主要节目"（prime=1）的节目
-- 按父节目类型筛选：根据传入的 parentProgramCategoryIds 集合，对每种类型分别查询
-- 状态筛选：只查询上架状态（program_status=1）的节目
-
-**vo&es字段**
-
-```
-基本信息：id、title、actor、place、itemPicture
-区域信息：areaId、areaName
-分类信息：programCategoryId、programCategoryName、parentProgramCategoryId、parentProgramCategoryName
-时间信息：showTime、showDayTime、showWeekTime
-价格信息：minPrice、maxPrice
-```
-
-------
-
-## 分类数据
-
-```java
-    @Operation(summary  = "查询分页列表")
-    @PostMapping(value = "/page")
-    public ApiResponse<PageVo<ProgramListVo>> selectPage(@Valid @RequestBody ProgramPageListDto programPageListDto) {
-        return ApiResponse.ok(programService.selectPage(programPageListDto));
-    }
-```
-
-**查询参数**
-
-ProgramPageListDto 包含以下参数：
-基础分页参数：pageNumber（页码）、pageSize（页面大小）
-
-筛选条件：
-
-- areaId：所在区域ID
-- parentProgramCategoryId：父节目类型ID
-- programCategoryId：节目类型ID
-- timeType：时间类型（0:全部 1:今天 2:明天 3:一周内 4:一个月内 5:按日历）
-- startDateTime/endDateTime：开始/结束时间（当timeType=5时必填）
-- 排序方式：type（1:相关度排序 2:推荐排序 3:最近开场 4:最新上架）
-
-**查询逻辑**
-
-**Elasticsearch 查询（优先）**
-筛选条件：
-
-- 如果指定 areaId：按区域筛选
-- 如果未指定 areaId：筛选主要节目（prime=1）
-- parentProgramCategoryId：父节目类型筛选
-- programCategoryId：节目类型筛选
-- 时间范围筛选：根据 timeType 参数处理时间范围
-
-排序规则：
-
-- type=2（推荐排序）：按热度降序（high_heat DESC）
-- type=3（最近开场）：按演出时间升序（show_time ASC）
-- type=4（最新上架）：按上架时间升序（issue_time ASC）
-- 默认：相关度排序
-
-**数据库查询（ES无数据时回退）**
-
-- 筛选条件：与ES查询条件基本一致
-- 关联查询：
-- 关联查询节目演出时间表（d_program_show_time）
-- 查询区域信息（通过RPC调用base-data服务）
-- 查询票价信息（最低价、最高价）
-
-**返回结果**
-
-```java
-package com.damai.vo;
-
-import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.Data;
-
-import java.io.Serial;
-import java.io.Serializable;
-import java.math.BigDecimal;
-import java.util.Date;
-
-@Data
-@Schema(title="ProgramListVo", description ="节目列表")
-public class ProgramListVo implements Serializable {
-
-    @Serial
-    private static final long serialVersionUID = 1L;
-    
-    @Schema(name ="id", type ="Long", description ="主键id")
-    private Long id;
-    
-    @Schema(name ="title", type ="Long", description ="标题")
-    private String title;
-    
-    @Schema(name ="actor", type ="Long", description ="艺人")
-    private String actor;
-    
-    @Schema(name ="place", type ="String", description ="地点")
-    private String place;
-    
-    @Schema(name ="itemPicture", type ="itemPicture", description ="图片介绍")
-    private String itemPicture;
-    
-    @Schema(name ="areaId", type ="Long", description ="区域id")
-    private Long areaId;
-
-    @Schema(name ="areaName", type ="Long", description ="区域名字")
-    private String areaName;
-    
-    @Schema(name ="programCategoryId", type ="Long", description ="节目类型表id")
-    private Long programCategoryId;
-    
-    @Schema(name ="programCategoryName", type ="Long", description ="节目类型表名字")
-    private String programCategoryName;
-    
-    @Schema(name ="parentProgramCategoryId", type ="Long", description ="父节目类型表id")
-    private Long parentProgramCategoryId;
-    
-    @Schema(name ="parentProgramCategoryName", type ="Long", description ="父节目类型表名字")
-    private String parentProgramCategoryName;
-    
-    @Schema(name ="showTime", type ="Date", description ="演出时间")
-    private Date showTime;
-    
-    @Schema(name ="showDayTime", type ="Date", description ="演出时间(精确到天)")
-    private Date showDayTime;
-    
-    @Schema(name ="showWeekTime", type ="String", description ="演出时间所在的星期")
-    private String showWeekTime;
-    
-    @Schema(name ="minPrice", type ="BigDecimal", description ="最低价格")
-    private BigDecimal minPrice;
-    
-    @Schema(name ="maxPrice", type ="BigDecimal", description ="最高价格")
-    private BigDecimal maxPrice;
-    
-    /**
-     * es中的文档id
-     * */
-    private String esId;
-}
-```
-
-和主页节目查询对比
-
-![image-20250924011003210](assets/image-20250924011003210.png)
-
-------
 
 ## 高性能节目详情展示功能
 
@@ -319,7 +24,8 @@ public ApiResponse<ProgramVo> getDetailV2(@Valid @RequestBody ProgramGetDto prog
 
 ### 接口执行流程
 
-#### 1. Controller层入口
+**1. Controller层入口**
+
 ```java
 @Operation(summary  = "查询详情V2(根据id)")
 @PostMapping(value = "/detail/v2")
@@ -328,12 +34,12 @@ public ApiResponse<ProgramVo> getDetailV2(@Valid @RequestBody ProgramGetDto prog
 }
 ```
 
-
-#### 2. Service层处理流程
+**2. Service层处理流程**
 
 从代码分析，`detailV2`方法的执行流程如下：
 
-#### 步骤1：获取节目演出时间信息
+**步骤1：获取节目演出时间信息**
+
 ```java
 ProgramShowTime programShowTime =
         programShowTimeService.selectProgramShowTimeByProgramIdMultipleCache(programGetDto.getId());
@@ -341,30 +47,34 @@ ProgramShowTime programShowTime =
 
 
 这个方法采用了三级缓存策略：
+
 1. 首先查询本地缓存[LocalCacheProgramShowTime](file:///Users/aer/IdeaProjects/damai/damai-server/damai-program-service/src/main/java/com/damai/service/cache/local/LocalCacheProgramShowTime.java#L32-L75)
 2. 本地缓存未命中则查询Redis缓存
 3. Redis缓存未命中则通过分布式锁查询数据库并写入缓存 ==分布式锁是为了缓解高并发数据库压力==
 
-#### 步骤2：获取节目基本信息
+**步骤2：获取节目基本信息**
+
 ```java
 ProgramVo programVo = programService.getByIdMultipleCache(programGetDto.getId(),programShowTime.getShowTime());
 ```
 
 
 同样采用三级缓存策略：
+
 1. 首先查询本地缓存[LocalCacheProgram](file:///Users/aer/IdeaProjects/damai/damai-server/damai-program-service/src/main/java/com/damai/service/cache/local/LocalCacheProgram.java#L31-L75)
 2. 本地缓存未命中则查询Redis缓存
 3. Redis缓存未命中则通过分布式锁查询数据库并写入缓存
 
-#### 步骤3：设置演出时间信息
+**步骤3：设置演出时间信息**
+
 ```java
 programVo.setShowTime(programShowTime.getShowTime());
 programVo.setShowDayTime(programShowTime.getShowDayTime());
 programVo.setShowWeekTime(programShowTime.getShowWeekTime());
 ```
 
+**步骤4：获取节目分组信息**
 
-#### 步骤4：获取节目分组信息
 ```java
 ProgramGroupVo programGroupVo = programService.getProgramGroupMultipleCache(programVo.getProgramGroupId());
 programVo.setProgramGroupVo(programGroupVo);
@@ -372,11 +82,13 @@ programVo.setProgramGroupVo(programGroupVo);
 
 
 同样采用三级缓存策略：
+
 1. 首先查询本地缓存[LocalCacheProgramGroup](file:///Users/aer/IdeaProjects/damai/damai-server/damai-program-service/src/main/java/com/damai/service/cache/local/LocalCacheProgramGroup.java#L31-L72)
 2. 本地缓存未命中则查询Redis缓存
 3. Redis缓存未命中则通过分布式锁查询数据库并写入缓存
 
-#### 步骤5：预加载相关数据
+**步骤5：预加载相关数据**
+
 ```java
 preloadTicketUserList(programVo.getHighHeat());
 preloadAccountOrderCount(programVo.getId());
@@ -385,7 +97,8 @@ preloadAccountOrderCount(programVo.getId());
 
 这两个方法会根据条件异步预加载购票人列表和账户订单计数，提升用户体验。
 
-#### 步骤6：获取节目分类信息
+**步骤6：获取节目分类信息**
+
 ```java
 ProgramCategory programCategory = getProgramCategoryMultipleCache(programVo.getProgramCategoryId());
 if (Objects.nonNull(programCategory)) {
@@ -397,18 +110,21 @@ if (Objects.nonNull(parentProgramCategory)) {
 }
 ```
 
+**步骤7：获取票档信息**
 
-#### 步骤7：获取票档信息
 ```java
 List<TicketCategoryVo> ticketCategoryVoList = ticketCategoryService
         .selectTicketCategoryListByProgramIdMultipleCache(programVo.getId(),programShowTime.getShowTime());
 programVo.setTicketCategoryVoList(ticketCategoryVoList);
 ```
 
+------
+
 
 ### 缓存策略总结
 
 整个流程采用了多级缓存架构：
+
 1. **本地缓存（Caffeine）**：提供最快的访问速度，减轻Redis压力
 2. **Redis缓存**：提供分布式缓存能力，确保多实例间数据一致性
 3. **数据库**：作为最终数据来源，当缓存都未命中时查询
@@ -451,6 +167,7 @@ public class Singleton {
 在您提到的代码中，双重检查锁的思想体现在：
 
 1. **第一次检查**：检查Redis缓存中是否存在数据
+
 ```java
 ProgramVo programVo = redisCache.get(RedisKeyBuild.createRedisKey(RedisKeyManage.PROGRAM, programId), ProgramVo.class);
 if (Objects.nonNull(programVo)) {
@@ -460,6 +177,7 @@ if (Objects.nonNull(programVo)) {
 
 
 2. **获取锁**：如果缓存未命中，则获取分布式锁
+
 ```java
 RLock lock = serviceLockTool.getLock(LockType.Reentrant, GET_PROGRAM_LOCK, new String[]{String.valueOf(programId)});
 lock.lock();
@@ -467,6 +185,7 @@ lock.lock();
 
 
 3. **第二次检查**：获取锁后再检查一次缓存
+
 ```java
 try {
     // 再次检查缓存，防止其他线程已经重建了缓存
@@ -480,31 +199,10 @@ try {
 }
 ```
 
-
-#### 读写锁的作用
-
-在这个场景中，读写锁（@ServiceLock）的作用是：
-- 保证读操作与写操作的互斥
-- 防止在数据更新时读取到不一致的数据
-
-所以整个流程是：
-1. 读写锁（读锁）- 保证与写操作的互斥
-2. 缓存检查 - 第一次检查
-3. 手动可重入锁 - 获取分布式锁
-4. 再次缓存检查 - 第二次检查
-5. 查询数据库并填充缓存
-
-#### 优势
-
-这种设计的优势包括：
-1. **减少锁竞争**：只有在缓存未命中时才获取锁
-2. **防止缓存击穿**：确保同一时间只有一个线程重建缓存
-3. **提高并发性能**：缓存命中时无需获取锁
-4. **保证数据一致性**：通过读写锁保证读写互斥
-
 #### 与单例模式的相似性
 
 这种模式与懒汉式单例的双重检查锁非常相似：
+
 - 都是先检查条件（缓存是否存在/实例是否已创建）
 - 都是在条件不满足时获取锁
 - 都是在获取锁后再次检查条件
@@ -561,7 +259,7 @@ try {
 
 ------
 
-### 锁优化后问题
+### 锁优化
 
 ![image-20250926234636351](assets/image-20250926234636351.png)
 
@@ -1265,3 +963,129 @@ https://www.bilibili.com/video/BV1EyXQYJEF5/?spm_id_from=333.1387.search.video_c
 这样看起来补记录意义不太大?毕竟数据都同步完成了 是用来给管理员看的吗
 
 ==总结起来就是对账记录的时候不一致则删除Redis中余票和座位信息缓存,以Mysql的数据为准重构缓存==
+
+------
+
+#  	 用户注册业务
+
+![img](assets/1723689547717-cf815238-633e-4fc9-afc5-d33b530aebbd.png)
+
+**关键组件：**
+
+1. lua脚本
+2. 验证码组件
+3. 校验树
+4. 布隆过滤器
+
+## 校验操作
+
+```
+检查是否需要验证码：无参数
+获取验证码：
+captchaType: 验证码类型（如blockPuzzle滑块、clickWord点选）
+验证验证码：
+captchaType: 验证码类型
+pointJson: 用户操作坐标或距离（可能经过AES加密）
+token: 验证码唯一标识
+注册时二次验证：
+captchaId: 验证码ID
+captchaVerification: 验证码验证结果（用于后端二次校验）
+```
+
+1. 用户发起注册请求
+   -> 业务服务生成 captchaId
+   -> 返回 captchaId 给前端
+2. 前端请求获取验证码 
+   -> 验证码服务生成验证码和 token
+   -> 返回验证码图片和 token 给前端
+
+所需参数：
+
+- RemoteAddr(浏览器自带)
+
+  ```java
+   RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
+          assert requestAttributes != null;
+          HttpServletRequest request = ((ServletRequestAttributes) requestAttributes).getRequest();
+          captchaVO.setBrowserInfo(RemoteUtil.getRemoteId(request));
+  ```
+
+- ClientUid(使用 Md5Util.md5() 方法对 browserInfo 进行 MD5 加密，作为 ClientUid或者通过前端手动传入的ClientUid) 作验证码重试次数限流
+
+  ```java
+  protected String getValidateClientId(CaptchaVO req){
+      	// 以服务端获取的客户端标识 做识别标志
+  		if(StringUtils.isNotEmpty(req.getBrowserInfo())){
+  			return Md5Util.md5(req.getBrowserInfo());
+  		}
+  		// 以客户端Ui组件id做识别标志
+  		if(StringUtils.isNotEmpty(req.getClientUid())){
+  			return req.getClientUid();
+  		}
+      	return null;
+  	}
+  ```
+
+- type(前端传入验证码类型)
+
+  ```java
+  public ResponseModel get(CaptchaVO captchaVO) {
+          if (captchaVO == null) {
+              return RepCodeEnum.NULL_ERROR.parseError("captchaVO");
+          }
+          if (StringUtils.isEmpty(captchaVO.getCaptchaType())) {
+              return RepCodeEnum.NULL_ERROR.parseError("类型");
+          }
+          return getService(captchaVO.getCaptchaType()).get(captchaVO);
+      }
+  ```
+
+3. 用户完成验证码验证 
+   -> 前端提交 token 和验证结果给业务服务
+
+后端将token+坐标信息、value加密组合作为key token作为value存入redis用于二次校验
+
+> 将 token 和坐标信息用 AES 加密生成 value
+> 以 REDIS_SECOND_CAPTCHA_KEY 为前缀，将加密后的 value 作为键，token 作为值存储到缓存中
+> 设置过期时间为 3 分钟 (EXPIRE_SIN_THREE)
+> 将加密后的 value 设置为 captchaVerification 返回给前端
+
+返回CaptchaVerification
+
+4. 用户提交注册请求
+   -> 前端提交 captchaId 和CaptchaVerification
+   -> 业务服务通过 captchaId 关联并验证验证码
+
+```java
+@Override
+public ResponseModel verification(CaptchaVO captchaVO) {
+    if (captchaVO == null) {
+        return RepCodeEnum.NULL_ERROR.parseError("captchaVO");
+    }
+    if (StringUtils.isEmpty(captchaVO.getCaptchaVerification())) {
+        return RepCodeEnum.NULL_ERROR.parseError("二次校验参数");
+    }
+    try {
+        String codeKey = String.format(REDIS_SECOND_CAPTCHA_KEY, captchaVO.getCaptchaVerification());
+        if (!CaptchaServiceFactory.getCache(cacheType).exists(codeKey)) {
+            return ResponseModel.errorMsg(RepCodeEnum.API_CAPTCHA_INVALID);
+        }
+        //二次校验取值后，即刻失效
+        CaptchaServiceFactory.getCache(cacheType).delete(codeKey);
+    } catch (Exception e) {
+        logger.error("验证码坐标解析失败", e);
+        return ResponseModel.errorMsg(e.getMessage());
+    }
+    return ResponseModel.success();
+}
+```
+
+以传入的 captchaVerification 作为键，构造缓存键 codeKey
+
+- 检查该键在缓存中是否存在
+
+- 如果存在，则删除该键（一次性使用，即刻失效）
+
+- 返回验证成功结果
+
+![image-20250917200914185](assets/image-20250917200914185.png)
