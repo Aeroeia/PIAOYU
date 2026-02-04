@@ -37,6 +37,7 @@ import com.damai.util.DateUtils;
 import com.damai.vo.ProgramVo;
 import com.damai.vo.SeatVo;
 import com.damai.vo.TicketCategoryVo;
+import org.springframework.context.annotation.Lazy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -80,6 +81,7 @@ public class ProgramOrderService {
     @Autowired
     private CreateOrderSend createOrderSend;
 
+    @Lazy
     @Autowired
     private ProgramService programService;
 
