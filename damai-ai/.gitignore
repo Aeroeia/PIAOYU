@@ -1,10 +1,9 @@
-application.yaml
 HELP.md
 target/
 !.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**
 !**/src/test/**
-
+application.yaml
 ### STS ###
 .apt_generated
 .classpath
