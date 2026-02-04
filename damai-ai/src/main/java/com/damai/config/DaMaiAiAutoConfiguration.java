@@ -1,5 +1,8 @@
 package com.damai.config;
 
+import com.damai.advisor.ChatTypeHistoryAdvisor;
+import com.damai.enums.ChatType;
+import com.damai.service.ChatTypeHistoryService;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.client.advisor.SimpleLoggerAdvisor;
@@ -26,10 +29,12 @@ public class DaMaiAiAutoConfiguration {
                 .maxMessages(10).build();
     }
     @Bean
-    public ChatClient assistantChatClient(ChatMemory chatMemory,DeepSeekChatModel model){
+    public ChatClient assistantChatClient(ChatMemory chatMemory, DeepSeekChatModel model,
+                                          ChatTypeHistoryService chatTypeHistoryService){
         return ChatClient.builder(model)
                 .defaultAdvisors(new SimpleLoggerAdvisor(),
-                        MessageChatMemoryAdvisor.builder(chatMemory).build())
+                        MessageChatMemoryAdvisor.builder(chatMemory).build(),
+                        ChatTypeHistoryAdvisor.builder(chatTypeHistoryService).type(ChatType.ASSISTANT.getCode()).build())
                 .build();
     }
 }

@@ -1,10 +1,13 @@
 package com.damai.controller;
 
+import com.damai.enums.ChatType;
+import com.damai.service.ChatTypeHistoryService;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.memory.MessageWindowChatMemory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -16,6 +19,9 @@ import reactor.core.publisher.Flux;
 public class ProgramController {
     @Resource
     private ChatClient assistantChatClient;
+
+    @Autowired
+    private ChatTypeHistoryService chatTypeHistoryService;
 
     @RequestMapping(value = "/chat", produces = "text/html;charset=utf-8")
     public Flux<String> chat(@RequestParam("prompt")String prompt,
