@@ -1,6 +1,8 @@
 package com.damai.config;
 
 import com.damai.advisor.ChatTypeHistoryAdvisor;
+import com.damai.ai.function.AiProgram;
+import com.damai.constants.DaMaiConstant;
 import com.damai.enums.ChatType;
 import com.damai.service.ChatTypeHistoryService;
 import org.springframework.ai.chat.client.ChatClient;
@@ -12,6 +14,8 @@ import org.springframework.ai.chat.memory.MessageWindowChatMemory;
 import org.springframework.ai.deepseek.DeepSeekChatModel;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import java.util.Deque;
 
 @Configuration
 public class DaMaiAiAutoConfiguration {
@@ -30,11 +34,14 @@ public class DaMaiAiAutoConfiguration {
     }
     @Bean
     public ChatClient assistantChatClient(ChatMemory chatMemory, DeepSeekChatModel model,
-                                          ChatTypeHistoryService chatTypeHistoryService){
+                                          ChatTypeHistoryService chatTypeHistoryService,
+                                          AiProgram aiProgram){
         return ChatClient.builder(model)
                 .defaultAdvisors(new SimpleLoggerAdvisor(),
                         MessageChatMemoryAdvisor.builder(chatMemory).build(),
                         ChatTypeHistoryAdvisor.builder(chatTypeHistoryService).type(ChatType.ASSISTANT.getCode()).build())
+                .defaultTools(aiProgram)
+                .defaultSystem(DaMaiConstant.DA_MAI_SYSTEM_PROMPT)
                 .build();
     }
 }
