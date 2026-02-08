@@ -45,7 +45,7 @@ public class ProgramCall {
                 .eq(StrUtil.isNotBlank(cityName),ProgramSearchVo::getPlace,cityName)
                 .eq(showTime!=null,ProgramSearchVo::getShowTime,showTime);
         List<ProgramSearchVo> programSearchVos = programMapper.selectList(wrapper);
-        log.info("返回结果数量: {}", programSearchVos);
+        log.info("返回结果: {}", programSearchVos);
         return programSearchVos;
     }
     public ProgramDetailResultVo detail(ProgramDetailDto programDetailDto) {
