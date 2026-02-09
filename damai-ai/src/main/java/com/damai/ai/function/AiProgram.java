@@ -14,17 +14,21 @@ import com.damai.dto.TicketCategoryListByProgramDto;
 import com.damai.utils.StringUtil;
 import com.damai.vo.*;
 import com.damai.vo.result.ProgramDetailResultVo;
+import io.netty.util.concurrent.ThreadPerTaskExecutor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
 import static com.damai.constants.DaMaiConstant.ORDER_LIST_ADDRESS;

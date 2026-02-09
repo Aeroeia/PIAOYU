@@ -1,6 +1,7 @@
 package com.damai.config;
 
 import com.damai.advisor.ChatTypeHistoryAdvisor;
+import com.damai.advisor.ChatTypeTitleAdvisor;
 import com.damai.ai.function.AiProgram;
 import com.damai.constants.DaMaiConstant;
 import com.damai.enums.ChatType;
@@ -12,6 +13,7 @@ import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.memory.ChatMemoryRepository;
 import org.springframework.ai.chat.memory.MessageWindowChatMemory;
 import org.springframework.ai.deepseek.DeepSeekChatModel;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -28,6 +30,15 @@ public class DaMaiAiAutoConfiguration {
                 .build();
     }
     @Bean
+    public ChatClient titleChatClient(DeepSeekChatModel model) {
+        return ChatClient
+                .builder(model)
+                .defaultAdvisors(
+                        new SimpleLoggerAdvisor()
+                )
+                .build();
+    }
+    @Bean
     public ChatMemory chatMemoryRepository(ChatMemoryRepository chatMemoryRepository){
         return MessageWindowChatMemory.builder().chatMemoryRepository(chatMemoryRepository)
                 .maxMessages(10).build();
@@ -35,11 +46,20 @@ public class DaMaiAiAutoConfiguration {
     @Bean
     public ChatClient assistantChatClient(ChatMemory chatMemory, DeepSeekChatModel model,
                                           ChatTypeHistoryService chatTypeHistoryService,
-                                          AiProgram aiProgram){
+                                          AiProgram aiProgram,
+                                          @Qualifier("titleChatClient")ChatClient titleChatClient){
         return ChatClient.builder(model)
                 .defaultAdvisors(new SimpleLoggerAdvisor(),
-                        MessageChatMemoryAdvisor.builder(chatMemory).build(),
-                        ChatTypeHistoryAdvisor.builder(chatTypeHistoryService).type(ChatType.ASSISTANT.getCode()).build())
+                        MessageChatMemoryAdvisor.builder(chatMemory)
+                                .order(DaMaiConstant.MESSAGE_CHAT_MEMORY_ADVISOR_ORDER)
+                                .build(),
+                        ChatTypeHistoryAdvisor.builder(chatTypeHistoryService).type(ChatType.ASSISTANT.getCode())
+                                .order(DaMaiConstant.CHAT_TYPE_HISTORY_ADVISOR_ORDER)
+                                .build(),
+                        ChatTypeTitleAdvisor.builder(chatTypeHistoryService).type(ChatType.ASSISTANT.getCode())
+                                .order(DaMaiConstant.CHAT_TITLE_ADVISOR_ORDER)
+                                .chatClient(titleChatClient)
+                                .build())
                 .defaultTools(aiProgram)
                 .defaultSystem(DaMaiConstant.DA_MAI_SYSTEM_PROMPT)
                 .build();

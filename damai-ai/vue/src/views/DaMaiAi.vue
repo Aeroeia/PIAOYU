@@ -291,41 +291,41 @@ const deleteChat = async (chatId) => {
 const checkAndUpdateChatTitles = async () => {
   try {
     // 检查是否有标题为"新的对话"的聊天记录
-    const hasNewChatTitle = chatHistory.value.some(chat => 
-      chat.title === '新的对话' || chat.title === '新的聊天'
+    const hasNewChatTitle = chatHistory.value.some(chat =>
+        chat.title === '新的对话'
     )
-    
+
     if (!hasNewChatTitle) {
       return
     }
-    
+
     // 调用接口获取聊天记录列表
     const chatListData = await chatAPI.chatTypeHistoryList(2)
-    
+
     // 检查响应是否有内容
     if (!chatListData || (Array.isArray(chatListData) && chatListData.length === 0)) {
       return
     }
-    
+
     // 更新聊天记录标题
     if (Array.isArray(chatListData)) {
       // 使用 forEach 修改数组元素，然后强制触发更新
       let hasUpdated = false
-      
+
       for (let i = 0; i < chatHistory.value.length; i++) {
         const chat = chatHistory.value[i]
         const matchedChat = chatListData.find(apiChat => apiChat.id === chat.id)
-        
+
         if (matchedChat && matchedChat.title && matchedChat.title.trim()) {
           // 直接修改对象属性并创建新引用
-          chatHistory.value[i] = { 
-            ...chat, 
-            title: matchedChat.title 
+          chatHistory.value[i] = {
+            ...chat,
+            title: matchedChat.title
           }
           hasUpdated = true
         }
       }
-      
+
       // 如果有更新，强制触发响应式更新
       if (hasUpdated) {
         // 触发数组的响应式更新
@@ -337,7 +337,6 @@ const checkAndUpdateChatTitles = async () => {
     console.error('检查并更新聊天标题失败:', error)
   }
 }
-
 
 
 onMounted(() => {
