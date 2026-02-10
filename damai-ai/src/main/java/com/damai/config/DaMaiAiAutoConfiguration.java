@@ -19,7 +19,6 @@ import org.springframework.context.annotation.Configuration;
 
 import java.util.Deque;
 
-@Configuration
 public class DaMaiAiAutoConfiguration {
     //@Resource 默认会根据变量名或方法名进行匹配
     @Bean
