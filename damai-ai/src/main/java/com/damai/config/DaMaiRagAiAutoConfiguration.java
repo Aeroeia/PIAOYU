@@ -2,9 +2,11 @@ package com.damai.config;
 
 import com.damai.advisor.ChatTypeHistoryAdvisor;
 import com.damai.advisor.ChatTypeTitleAdvisor;
+import com.damai.advisor.QueryRewriteAdvisor;
 import com.damai.ai.rag.MarkdownLoader;
 import com.damai.enums.ChatType;
 import com.damai.service.ChatTypeHistoryService;
+import com.damai.service.HybridSearchService;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.client.advisor.SimpleLoggerAdvisor;
@@ -18,7 +20,9 @@ import org.springframework.ai.vectorstore.SimpleVectorStore;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
+import org.springframework.core.Ordered;
 import org.springframework.core.io.support.ResourcePatternResolver;
 
 import java.util.List;
@@ -54,7 +58,7 @@ public class DaMaiRagAiAutoConfiguration {
     @Bean
     public ChatClient markdownChatClient(OpenAiChatModel model, ChatMemory chatMemory, VectorStore vectorStore,
                                          MarkdownLoader markdownLoader, ChatTypeHistoryService chatTypeHistoryService,
-                                         @Qualifier("titleChatClient")ChatClient titleChatClient) {
+                                         @Qualifier("titleChatClient")ChatClient titleChatClient){
         List<Document> documentList = markdownLoader.loadMarkdowns();
         vectorStore.add(documentList);
 
@@ -72,6 +76,47 @@ public class DaMaiRagAiAutoConfiguration {
                                 .searchRequest(SearchRequest.builder()
                                         .similarityThreshold(0.3)
                                         .topK(8)
+                                        .build())
+                                .build()
+                )
+                .build();
+    }
+    @Bean
+    @ConditionalOnProperty(name = RAG_VERSION, havingValue = "2")
+    public ChatClient markdownChatClient(OpenAiChatModel model, ChatMemory chatMemory, VectorStore vectorStore,
+                                         MarkdownLoader markdownLoader, ChatTypeHistoryService chatTypeHistoryService,
+                                         @Qualifier("titleChatClient")ChatClient titleChatClient,
+                                         HybridSearchService hybridSearchService) {  //  新增参数
+        List<Document> documentList = markdownLoader.loadMarkdowns();
+        vectorStore.add(documentList);
+
+        // ==========  新增：缓存文档到混合检索服务  ==========
+        hybridSearchService.cacheDocuments(documentList);
+
+        return ChatClient
+                .builder(model)
+                .defaultSystem(MARK_DOWN_SYSTEM_PROMPT)
+                .defaultAdvisors(
+                        new SimpleLoggerAdvisor(),
+                        // ==========  新增QueryRewriteAdvisor ==========
+                        QueryRewriteAdvisor.builder()
+                                // 在RAG之前执行
+                                .order(Ordered.HIGHEST_PRECEDENCE + 50)
+                                // 先用规则扩展，降低延迟
+                                .enableLLMRewrite(false)
+                                .build(),
+                        ChatTypeHistoryAdvisor.builder(chatTypeHistoryService).type(ChatType.MARKDOWN.getCode())
+                                .order(CHAT_TYPE_HISTORY_ADVISOR_ORDER).build(),
+                        ChatTypeTitleAdvisor.builder(chatTypeHistoryService).type(ChatType.MARKDOWN.getCode())
+                                .chatClient(titleChatClient).chatMemory(chatMemory).order(CHAT_TITLE_ADVISOR_ORDER).build(),
+                        MessageChatMemoryAdvisor.builder(chatMemory).order(MESSAGE_CHAT_MEMORY_ADVISOR_ORDER).build(),
+                        // RAG检索配置：降低阈值、增加TopK可提高召回率
+                        QuestionAnswerAdvisor.builder(vectorStore)
+                                .searchRequest(SearchRequest.builder()
+                                        // 降低阈值：0.3 -> 0.25，提高召回率
+                                        .similarityThreshold(0.25)
+                                        // 增加数量：8 -> 12，召回更多候选
+                                        .topK(12)
                                         .build())
                                 .build()
                 )
