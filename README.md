@@ -2,7 +2,7 @@
 
 ## 高性能节目详情展示功能
 
-```
+```java
 @Operation(summary  = "查询详情(根据id)")
 @PostMapping(value = "/detail")
 public ApiResponse<ProgramVo> getDetail(@Valid @RequestBody ProgramGetDto programGetDto) {
@@ -1089,3 +1089,1254 @@ public ResponseModel verification(CaptchaVO captchaVO) {
 - 返回验证成功结果
 
 ![image-20250917200914185](assets/image-20250917200914185.png)
+
+---
+# AI模块
+
+![Pasted image 20260211180440.png](assets/Pasted%20image%2020260211180440.png)
+
+
+
+
+
+## ChatClient初使用
+
+> `ChatClient` 是一个用于与 LLM 进行聊天（对话）交互的客户端封装。
+> 它屏蔽了很多底层 HTTP 调用、请求构造、响应解析等细节，开发者只需要通过它简单的 API，就可以发起问题并得到 AI 的回答。
+
+### 核心功能
+
+- 自动注入底层模型（如 OpenAI、DeepSeek 等）
+- 支持设置默认的 system prompt（系统角色描述）
+- 支持拦截器（advisor）扩展，比如记录日志、预处理消息等
+- 提供同步/异步的聊天接口
+
+### 配置使用
+
+1. 依赖引入
+
+   > 父模块: 进行AI依赖版本控制
+   >
+   > ```xml
+   > <dependencyManagement>
+   >     <dependencies>
+   >         <dependency>
+   >             <groupId>org.springframework.boot</groupId>
+   >             <artifactId>spring-boot-dependencies</artifactId>
+   >             <version>${spring.boot.version}</version>
+   >             <type>pom</type>
+   >             <scope>import</scope>
+   >         </dependency>
+   >         <dependency>
+   >             <groupId>org.springframework.ai</groupId>
+   >             <artifactId>spring-ai-bom</artifactId>
+   >             <version>${spring-ai.version}</version>
+   >             <type>pom</type>
+   >             <scope>import</scope>
+   >         </dependency>
+   >     </dependencies>
+   > </dependencyManagement>
+   > ```
+   >
+   > Deepseek依赖
+   >
+   > ```java
+   > <dependency>
+   > <groupId>org.springframework.ai</groupId>
+   > <artifactId>spring-ai-starter-model-deepseek</artifactId>
+   > </dependency>
+   > ```
+
+`注：` 相关模型依赖下间接引入`spring-ai-core` 提供相关的AI接口
+
+1. 配置
+
+   > ```java
+   > @Bean
+   >     public ChatClient chatClient(DeepSeekChatModel model) {
+   >         return ChatClient
+   >                 .builder(model)
+   >                 .build();
+   >     }
+   > ```
+   >
+   > - `public ChatClient chatClient(DeepSeekChatModel model)`
+   >   - 定义一个返回 `ChatClient` 的 Bean 方法，并接收一个 `DeepSeekChatModel` 对象作为参数。
+   >   - `DeepSeekChatModel` 是 Spring AI 中对 DeepSeek 模型的封装，负责和 DeepSeek API 通信。
+   > - `ChatClient.builder(model)`
+   >   - 创建一个 `ChatClient` 的构建器，告诉客户端使用哪个模型。
+   > - `.build()`
+   >   - 构建最终的 `ChatClient` 实例。
+
+2. 使用
+
+```java
+@RestController
+@RequestMapping("/simple")
+public class SimpleChatController {
+
+    @Resource
+    private ChatClient chatClient;
+
+
+    @RequestMapping(value = "/chat", produces = "text/html;charset=utf-8")
+    public Flux<String> chat(@RequestParam("prompt") String prompt) {
+        return chatClient.prompt()
+                //传入用户的对话
+                .user(prompt)
+                //进行流式调用
+                .stream()
+                //返回内容
+                .content();
+    }
+}
+```
+
+3. 前端
+
+> 传统的 **AJAX**（如 $.ajax 或 axios）并不适合处理流式（Streaming）结果，因为它们的设计初衷是“**等待响应完成后一次性返回**”。
+>
+> 要接收 Spring AI 的 Flux 流式数据并在前端实时显示，目前最主流、最简单的方案是使用浏览器原生的 **Fetch API**。
+
+```js
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Spring AI Stream</title>
+</head>
+<body>
+    <input type="text" id="prompt" placeholder="输入问题..." style="width: 300px;">
+    <button onclick="sendChat()">发送</button>
+    <div id="chat-box" style="margin-top:20px; border:1px solid #ccc; padding:10px; min-height: 100px; white-space: pre-wrap;"></div>
+
+    <script>
+        async function sendChat() {
+            const prompt = document.getElementById('prompt').value;
+            const chatBox = document.getElementById('chat-box');
+            chatBox.innerText = ""; // 清空旧内容
+
+            try {
+                // 1. 使用 Fetch 发送请求
+                const response = await fetch(`/simple/chat?prompt=${encodeURIComponent(prompt)}`);
+                
+                // 2. 获取响应体的读取器 (Reader)
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+
+                // 3. 循环读取流数据
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break; // 读取完毕，退出循环
+
+                    // 4. 将字节数据转换为文本并追加到 UI
+                    const chunk = decoder.decode(value, { stream: true });
+                    chatBox.innerText += chunk;
+                }
+            } catch (error) {
+                console.error("读取流失败:", error);
+            }
+        }
+    </script>
+</body>
+</html>
+```
+
+*以上可以实现一个简单的LLM调用以及流式返回*
+
+### 日志
+
+> 请求 --> Advisor 前置处理 --> 模型调用 --> Advisor 后置处理 --> 返回响应
+
+![Pasted image 20260211223408](assets/Pasted%20image%2020260211223408.png)
+
+```java
+@Bean
+public ChatClient chatClient(DeepSeekChatModel model) {
+    return ChatClient
+            .builder(model)
+            .defaultAdvisors(
+                    // 添加日志组件
+                    new SimpleLoggerAdvisor()
+            )
+            .build();
+}
+```
+
+`注:`**SimpleLoggerAdvisor的打印日志级别是debug**
+
+```java
+private void logRequest(ChatClientRequest request) {
+    logger.debug("request: {}", this.requestToString.apply(request));
+}
+
+private void logResponse(ChatClientResponse chatClientResponse) {
+    logger.debug("response: {}", this.responseToString.apply(chatClientResponse.chatResponse()));
+}
+```
+
+**设置为debug**
+
+```yaml
+logging:
+  level:
+    # 设置 SimpleLoggerAdvisor 所在的包级别为 DEBUG
+    org.springframework.ai.advisors: DEBUG
+```
+
+### 提示词
+
+```java
+@Bean
+public ChatClient chatClient(DeepSeekChatModel model) {
+    return ChatClient
+            .builder(model)
+            //设置默认提示词 也可以在使用的时候通过system进行设置
+            .defaultSystem("你是一位智能助手，你的特点是温柔、善良，你的名字叫智能小艾，要结合你的特点积极的回答用户的问题。")
+            .defaultAdvisors(
+                    new SimpleLoggerAdvisor()
+            )
+            .build();
+}
+```
+
+## 会话历史保存
+
+### 配置使用
+
+1. 配置
+   **ChatMemory**
+
+   > Chatmemory是实现会话存储的接口 真正实现保存的操作是靠 chatMemoryRepository 来执行的 chatMemoryRepository默认是内存存储(ConditionOnMissingBean) 因此引入jdbc相关依赖可以替代这个Bean
+
+   **依赖引入**
+   *引入jdbc相关依赖*
+
+   ```xml
+   <dependency>
+       <groupId>com.mysql</groupId>
+       <artifactId>mysql-connector-j</artifactId>
+   </dependency>
+   <dependency>
+       <groupId>org.springframework.ai</groupId>
+       <artifactId>spring-ai-starter-model-chat-memory-repository-jdbc</artifactId>
+   </dependency>
+   ```
+
+   ```yaml
+   # 这样就可以将chatId和会话内容保存到数据库中了，并且表是自动创建的 
+   ai:
+   chat:
+     memory:
+       repository:
+         jdbc:
+           initialize-schema: always #告诉 Spring AI，每次应用程序启动时都去尝试执行初始化脚本。
+           platform: mariadb #告诉 Spring AI 使用哪种数据库方言的脚本。 指定 mariadb 后，它会自动去寻找对应的 MariaDB 专用语法脚本。	
+   ```
+
+2. 配置Bean
+   **ChatMemory**
+
+   ```java
+   @Bean
+      public ChatMemory chatMemoryRepository(ChatMemoryRepository chatMemoryRepository){
+          return 
+          //取最近十条 user&assistant
+          MessageWindowChatMemory.builder().chatMemoryRepository(chatMemoryRepository)
+                  .maxMessages(10).build();
+      }
+   ```
+
+   **Client**
+
+   ```java
+   @Bean
+   public ChatClient assistantChatClient(DeepSeekChatModel model, ChatMemory chatMemory) {
+      return ChatClient
+              .builder(model)
+              .defaultSystem(DaMaiConstant.DA_MAI_SYSTEM_PROMPT)
+              .defaultAdvisors(
+                      new SimpleLoggerAdvisor(),
+                      MessageChatMemoryAdvisor.builder(chatMemory).build()
+              )
+              .defaultTools(aiProgram)
+              .build();
+   }
+   ```
+
+3. 修改对话功能
+
+   ```java
+   @RequestMapping(value = "/chat", produces = "text/html;charset=utf-8")
+   public Flux<String> chat(@RequestParam("prompt") String prompt,
+                        @RequestParam("chatId") String chatId) {
+       // 请求模型
+       return assistantChatClient.prompt()
+       .user(prompt)
+       //传入ID
+       .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, chatId))
+       .stream()
+       .content();
+   }
+   ```
+
+------
+
+## 保存不同会话列表(自定义Advisor)
+
+> 注意到 MessageChatMemoryAdvisor 是继承了 BaseChatMemoryAdvisor ，实现了这两个方法 before 和 after，这是不是 AOP 切面很像很像！没错，这就是和切面一个意思
+
+**什么是 BaseChatMemoryAdvisor**
+
+> BaseChatMemoryAdvisor 是 Spring AI 提供的一个抽象类，目的是允许开发者在 AI 请求执行的前后对 对话记忆（Chat Memory） 进行拦截和处理。它实现了 Spring AOP 的 Advisor，可以与 AI 的 ChatClient 流程集成。它提供了两个关键的钩子方法：`before`、`after`，通过继承 BaseChatMemoryAdvisor，你可以自定义对话记忆的读写策略、日志记录、上下文注入等。
+
+------
+
+### 实现
+
+模仿MessageChatMemoryAdvisor实现BaseChatMemoryAdvisor重写`before`&`after`方法 并仿造其建造者模式
+**核心方法:**
+
+```java
+@Override
+public ChatClientRequest before(final ChatClientRequest chatClientRequest, final AdvisorChain advisorChain) {
+    String conversationId = getConversationId(chatClientRequest.context(), this.defaultConversationId);
+    chatTypeHistoryService.save(type,conversationId);
+    return chatClientRequest;
+}
+```
+
+**表结构**
+
+```sql
+CREATE TABLE `d_chat_type_history` (
+ `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键id',
+ `type` int NOT NULL COMMENT '会话类型，详见ChatType枚举',
+ `chat_id` varchar(225) NOT NULL COMMENT '会话id',
+ `title` varchar(512) DEFAULT NULL COMMENT '标题',
+ `create_time` datetime DEFAULT NULL COMMENT '创建时间',
+ `edit_time` datetime DEFAULT NULL COMMENT '编辑时间',
+ `status` tinyint(1) DEFAULT '1' COMMENT '1:正常 0:删除',
+ PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=65 DEFAULT CHARSET=utf8mb3 COMMENT='会话历史表';
+```
+
+**配置**
+
+```java
+@Bean
+public ChatClient assistantChatClient(DeepSeekChatModel model, ChatMemory chatMemory, AiProgram aiProgram,
+                                      ChatTypeHistoryService chatTypeHistoryService,@Qualifier("titleChatClient")ChatClient titleChatClient) {
+    return ChatClient
+            .builder(model)
+            .defaultSystem(DaMaiConstant.DA_MAI_SYSTEM_PROMPT)
+            .defaultAdvisors(
+                    new SimpleLoggerAdvisor(),
+                    //新增Advisor
+            ChatTypeHistoryAdvisor.builder(chatTypeHistoryService).type(ChatType.ASSISTANT.getCode()).order(CHAT_TYPE_HISTORY_ADVISOR_ORDER).build(),
+                    MessageChatMemoryAdvisor.builder(chatMemory).order(MESSAGE_CHAT_MEMORY_ADVISOR_ORDER).build()
+            )
+            .defaultTools(aiProgram)
+            .build();
+}
+```
+
+------
+
+## FunctionCalling
+
+> SpringAI 的 Function Calling 大致包括以下步骤：
+>
+> 1. 事先注册“工具”
+>    在 SpringAI 中，你需要先将所有可调用的业务逻辑（比如查询天气、下单、发送邮件等）封装成独立的 Function（SpringAI 里称为 Tool），并为它们命名、说明用途、定义输入参数格式。
+> 2. 构建上下文提示
+>    把这些 Tool 的元信息（名称、功能介绍、参数 Schema）整合到 Prompt 中，与用户的原始问题一并发给大模型，让模型知道有哪些能力可用及其使用方式。
+> 3. 模型判断调用时机
+>    在对话过程中，模型会根据用户的提问或上下文内容，智能地决定是否需要启用某个 Tool 来获取数据或执行操作，而不是始终只靠自身的“静态”知识库。
+> 4. 返回调用指令
+>    一旦模型认为应调用某个工具，它会在响应中以结构化的形式（包含 tool 名称和填好的参数）告诉应用：“请执行这个 Function，参数如下”。
+> 5. 本地执行并反馈
+>    Java 端收到模型的调用指令后，解析出要调用的具体 Function 和对应参数，执行相应业务逻辑，并将执行结果（无论是数据还是状态）再包装成文本或 JSON，反馈给大模型。
+> 6. 持续对话与结果整合
+>    模型拿到执行结果后，继续基于新的信息生成后续回复或下一步动作，双方如此循环，直到完成用户所需的整个任务。
+
+### 配置使用
+
+1. 对要被调用的方法加上Tool注解并附上描述供LLM理解使用
+
+```java
+	@Component
+	public class AiProgram {
+	
+	
+	@Tool(description = "根据地区或者类型查询推荐的节目")
+	public List<ProgramSearchVo> selectProgramRecommendList(@ToolParam(description = "查询的条件", required = true) ProgramRecommendFunctionDto programRecommendFunctionDto){
+		
+	}
+	
+}
+```
+
+1. 对于DTO 加上适当描述
+
+```java
+@Data
+public class ProgramRecommendFunctionDto {
+
+@ToolParam(required = false, description = "节目演出地点")
+private String areaName;
+
+@ToolParam(required = false, description = "节目类型")
+private String programCategory;
+}
+```
+
+1. 对ChatClient进行配置
+
+```java
+@Bean
+public ChatClient assistantChatClient(DeepSeekChatModel model, ChatMemory chatMemory, AiProgram aiProgram) {
+    return ChatClient
+            .builder(model)
+            .defaultSystem(DaMaiConstant.DA_MAI_SYSTEM_PROMPT)
+            .defaultAdvisors(
+                    new SimpleLoggerAdvisor(),
+                    MessageChatMemoryAdvisor.builder(chatMemory).order(MESSAGE_CHAT_MEMORY_ADVISOR_ORDER).build()
+            )
+            //添加Tool
+            .defaultTools(aiProgram)
+            .build();
+}
+```
+
+具体实现根据业务进行对应操作即可
+
+------
+
+## 会话标题自动化更新
+
+前面通过自定义`advisor`在用户发送`prompt`后会在表中保存一份记录 但是只是保存了会话的`id `对于`titile`是没有进行赋值的 这一部分则是将这个会话的`title`补全
+**更新标题的时机应该是在和 ai 对话后，产生了具体的内容后。因此标题的执行时机要在 MessageChatMemoryAdvisor 的 after 方法之后执行，因为这样才能拿到，用户问ai，ai再回复，这一整个完整来回的对话内容。**
+
+执行流程图
+
+```text
+调用入口
+   │
+A.before
+   │
+B.before
+   │
+C.before
+   │
+AI 模型执行
+   │
+C.after
+   │
+B.after
+   │
+A.after
+   │
+返回结果
+```
+
+### 配置使用
+
+1. ChatTypeTitleAdvisor具体实现
+
+**核心实现**
+
+- 先获取到 conversationId，也就是 chatId
+- 从 SpringAI 提供的 chatMemory 中，查询到对话具体的内容
+- 通过 chatId 和 type 查询到对应的会话聊天
+- 判断此会话聊天的标题是否为空，不为空表示已经更新了，就不再执行
+- 调用 ai 对查询到对话具体的内容进行总结出标题
+- 将标题更新到数据库中
+
+```java
+    @Override
+    public ChatClientResponse after(final ChatClientResponse chatClientResponse, final AdvisorChain advisorChain) {
+        //获取对话id
+        String conversationId = getConversationId(chatClientResponse.context(), this.defaultConversationId);
+        //数据库获取
+        List<Message> messages = chatMemory.get(conversationId);
+        List<ChatHistoryMessageVO> list = messages.stream().map(ChatHistoryMessageVO::new).toList();
+        log.info("会话记录: {}", JSON.toJSONString(list));
+        //获取历史id进行填补
+        ChatTypeHistory chatTypeHistory = chatTypeHistoryService.getChatTypeHistory(type, conversationId);
+        if (Objects.isNull(chatTypeHistory) || StringUtil.isNotEmpty(chatTypeHistory.getTitle())) {
+            return chatClientResponse;
+        }
+        String content = chatClient.prompt().user("请为以下对话总结一句简洁标题\n" + JSON.toJSONString(list) + "\n 只返回标题文本内容，不要其他样式")
+                .call().content();
+        
+        log.info("生成的标题: {}", content);
+        
+        ChatTypeHistory updatedChatTypeHistory = new ChatTypeHistory();
+        updatedChatTypeHistory.setId(chatTypeHistory.getId());
+        updatedChatTypeHistory.setTitle(content);
+        chatTypeHistoryService.updateById(updatedChatTypeHistory);
+        return chatClientResponse;
+    }
+```
+
+**重写adviseStream**
+
+```java
+    @Override
+    public Flux<ChatClientResponse> adviseStream(final ChatClientRequest chatClientRequest, final StreamAdvisorChain streamAdvisorChain) {
+        return Mono.just(chatClientRequest)
+                .publishOn(scheduler)
+                .map(request -> this.before(request, streamAdvisorChain))
+                .flatMapMany(streamAdvisorChain::nextStream)
+                .transform(flux -> new ChatClientMessageAggregator()
+                        .aggregateChatClientResponse(flux,
+                                response -> this.after(response, streamAdvisorChain)));
+    }
+```
+
+按道理说 ChatTypeTitleAdvisor 实现了 after 方法后就可以实现想要的功能了，为什么还要再需要实现 adviseStream 方法？它是干什么用的？
+
+**关键点在于：**
+
+```java
+.transform(flux -> new ChatClientMessageAggregator().aggregateChatClientResponse(flux,
+                response -> this.after(response, streamAdvisorChain)));
+ChatClientMessageAggregator 负责响应流的聚合，聚合完成后才进入 after。
+```
+
+说白了就是 `MessageChatMemoryAdvisor` 会等待其他的 `Advisor` 执行完 `after `方法后，再执行 `MessageChatMemoryAdvisor` 的 after 方法。 所以让` ChatTypeTitleAdvisor` 也和 `MessageChatMemoryAdvisor` 一样，也实现 adviseStream 方法。这样对冲一下，结果还是可以让 `ChatTypeTitleAdvisor` 的 `after` 靠后执行了
+
+1. 配置Bean
+
+```java
+@Bean
+public ChatClient assistantChatClient(DeepSeekChatModel model, ChatMemory chatMemory, AiProgram aiProgram,
+                                      ChatTypeHistoryService chatTypeHistoryService,@Qualifier("titleChatClient")ChatClient titleChatClient) {
+    return ChatClient
+            .builder(model)
+            .defaultSystem(DaMaiConstant.DA_MAI_SYSTEM_PROMPT)
+            .defaultAdvisors(
+                    new SimpleLoggerAdvisor(),
+                    ChatTypeHistoryAdvisor.builder(chatTypeHistoryService).type(ChatType.ASSISTANT.getCode()).order(CHAT_TYPE_HISTORY_ADVISOR_ORDER).build(),
+                    ChatTypeTitleAdvisor.builder(chatTypeHistoryService).type(ChatType.ASSISTANT.getCode())
+                            .chatClient(titleChatClient).chatMemory(chatMemory).order(CHAT_TITLE_ADVISOR_ORDER).build(),
+                    MessageChatMemoryAdvisor.builder(chatMemory).order(MESSAGE_CHAT_MEMORY_ADVISOR_ORDER).build()
+            )
+            .defaultTools(aiProgram)
+            .build();
+}
+public static final Integer MESSAGE_CHAT_MEMORY_ADVISOR_ORDER = Ordered.HIGHEST_PRECEDENCE + 1000;
+
+public static final Integer CHAT_TITLE_ADVISOR_ORDER = Ordered.HIGHEST_PRECEDENCE + 999;
+```
+
+**`Order`越小越靠前执行**
+
+------
+
+## RAG
+
+### RAG原理
+
+> RAG（Retrieval-Augmented Generation）是一种结合检索和生成的技术，用于增强大型语言模型（LLM）的回答能力。与传统只依赖模型训练数据不同，RAG允许模型在生成回答时动态检索外部知识库的信息，好比让 AI 进行“开卷考试”。具体来说，RAG 系统通常包括以下步骤：
+
+1. 数据摄取（Ingestion）：将权威信息（如公司文档、数据库等）加载到向量数据库或检索系统中；
+2. 检索（Retrieval）：当用户提出问题时，系统将问题转化为向量，并在知识库中搜索语义最相近的内容；
+3. 上下文融合（Augmentation）：将检索到的相关信息与用户问题合并，构造新的提示（prompt）给模型；
+4. 生成（Generation）：将增强后的提示输入LLM，由模型根据这些上下文生成回答。
+
+通过上述流程，RAG 可以让模型在回答问题时参考实时的、特定领域的知识，从而提高准确性和相关性。例如，我们可以把 RAG 系统比作一个学生做“开卷考试”，学生（LLM）一边答题，一边翻阅教科书（向量数据库中的文档）来查找答案。
+
+在这个过程中，向量模型和向量数据库发挥关键作用：前者将查询和文档转换为数字向量，后者根据向量相似度快速检索相关内容。
+
+**核心流程步骤**
+
+1. Step 1 - 文档预处理
+
+   - 解析：
+
+     > 《节目取消和退票 - 相关问题与回答》
+     >
+     > 《节目订票 - 相关问题与回答》
+
+   - 切片（Chunk）：
+
+     > 每段拆成合适的小块（如：一句话、一问一答）
+     >
+     > 向量化（Embedding）：
+     >
+     > 使用如 text-embedding-3-small 将每个段落生成向量。
+     >
+     > 存入向量数据库（如：Pinecone、Weaviate、FAISS）
+
+2. Step 2 - 用户提问
+
+   > 用户自然语言输入：
+   > 可能关键词不准确，语言表达自由。
+
+3. Step 3 - 语义检索
+
+   > 将用户问题转换为向量。
+   > 在向量数据库中进行相似度检索，找出相关语义段落。
+
+4. Step 4 - RAG（检索增强生成）
+
+   > 将检索到的相关内容交给大语言模型（LLM）。
+   >
+   > LLM 理解用户问题 + 已检索段落，生成自然语言答案。
+   >
+   > 可以支持补充来源（如引用哪一条规则、来自哪个文档）。
+
+5. Step 5 - 返回结果
+
+   > 直接回答用户问题。
+   > 支持追问、多轮对话，持续调用 RAG 流程。
+
+**与 ElasticSearch 对比流程图**
+
+- ElasticSearch 流程
+
+  > ```
+  > 用户提问 → 关键词检索 → 文档列表 → 用户自己阅读 → 自行总结答案
+  > ```
+
+- RAG + 向量数据库流程
+
+  > ```
+  > 用户提问 → 语义检索 → 相关片段召回 → AI 生成答案 → 直接回答用户
+  > ```
+
+**RAG和FunctionCall比对**
+
+> 如果用functioncal强行替代rag 那需要写成千上万个functioncall来处理用户多样的请求 但rag的话 可以将零零碎碎结合起来然后让大模型拼凑起这些答案
+
+------
+
+### 实战使用
+
+#### VectorStore 接口概述
+
+> 包路径
+> `org.springframework.ai.vectorstore`
+>
+> 责任
+>
+> - 向向量数据库添加、删除文档
+> - 基于查询文本或元数据过滤执行相似度搜索
+>
+> 可选地访问底层“原生”客户端
+
+| 方法签名                                                     | 说明                                                         |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
+| `void add(List<Document> documents)`                         | 批量添加文档到向量存储                                       |
+| `void delete(List<String> idList)`                           | 根据文档 ID 列表删除文档                                     |
+| `void delete(Filter.Expression filterExpression)`            | 根据过滤表达式删除文档                                       |
+| `List<Document> similaritySearch(String query)`              | 直接以文本生成 Embedding 并搜索最相似文档                    |
+| `List<Document> similaritySearch(SearchRequest request)`     | 支持指定 Top-K、相似度阈值、元数据过滤等参数的高级检索       |
+| `<T> Optional<T> getNativeClient()`                          | 获取底层向量数据库客户端（如 RedisClient、PineconeClient 等），进行更细粒度操作 |
+| `static <T extends VectorStore.Builder<T>> VectorStore.Builder<T> builder(String name)` | 构建器，用于以流式 API 配置并实例化 VectorStore 实现         |
+
+#### 配置使用
+
+1. 引入向量数据库的依赖 `SimpleVectorStore`为例
+
+```xml
+<dependency>
+    <groupId>org.springframework.ai</groupId>
+    <artifactId>spring-ai-advisors-vector-store</artifactId>
+</dependency>
+```
+
+1. 引入 OpenAI 的依赖
+
+   > 目前 SpirngAI 中的 DeepSeek 只支持对话模型，还并不支持向量模型，所以需要使用 OpenAI 的向量模型，但是OpenAI 需要用手段才可以使用，比较麻烦。
+   >
+   > 不过好在阿里的 ai 模型，阿里百炼遵守 OpenAI 的规范，所以可以使用 OpenAI 的依赖，实际的调用 ai 是阿里百炼平台
+
+```xml
+<dependency>
+    <groupId>org.springframework.ai</groupId>
+    <artifactId>spring-ai-starter-model-openai</artifactId>
+</dependency>
+spring:
+  application:
+    name: damai-ai
+  ai:
+    openai:
+      base-url: https://dashscope.aliyuncs.com/compatible-mode
+      api-key: ${对应的key}
+      chat:
+        options:
+          model: qwen-max-latest
+      embedding:
+        options:
+          model: text-embedding-v3
+          dimensions: 1024
+```
+
+rag依赖
+
+```xml
+<dependency>
+    <groupId>org.springframework.ai</groupId>
+    <artifactId>spring-ai-rag</artifactId>
+</dependency>
+```
+
+1. 配置VectorStore
+
+```java
+@Bean
+public VectorStore vectorStore(OpenAiEmbeddingModel embeddingModel) {
+    return SimpleVectorStore.builder(embeddingModel).build();
+}
+```
+
+1. 配置MarkDown文本跟解析器进行切片
+
+- ResourcePatternResolver
+  Spring 提供的资源加载工具，可以根据路径模式批量获取资源文件（支持通配符，如 *.md）。
+- Document
+  文档对象，通常包含文档内容和元数据，用于向量化或其他文档处理场景。
+- MarkdownDocumentReader
+  Markdown 文档解析工具，把 Markdown 文件切片成小文档（片段），支持配置是否包含代码块、引用块、是否根据分隔线划分。
+
+```java
+package com.damai.ai.rag;
+
+import com.damai.utils.StringUtil;
+import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.ai.document.Document;
+import org.springframework.ai.reader.markdown.MarkdownDocumentReader;
+import org.springframework.ai.reader.markdown.config.MarkdownDocumentReaderConfig;
+import org.springframework.ai.reader.markdown.config.MarkdownDocumentReaderConfig.Builder;
+import org.springframework.ai.transformer.splitter.TokenTextSplitter;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.support.ResourcePatternResolver;
+
+import java.io.IOException;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+@AllArgsConstructor
+@Slf4j
+public class MarkdownLoader {
+    /*
+            启动加载
+            │
+        扫描 classpath:datum/*.md
+            │
+        找到 N 个文件
+            │
+        遍历每个文件 ───────────▶ 读取文件名 ──▶ 提取标签 ──▶ 配置解析器 ──▶ 解析文档片段 ──▶ 加入总列表
+            │                                                                          │
+            └──────────────────────────────────────────────────────────────────────────┘
+            │
+        记录总共加载的文档片段数
+            │
+        返回文档片段列表
+     */
+
+    //Spring 提供的资源加载工具，可以根据路径模式批量获取资源文件（支持通配符，如 *.md）。
+    private final ResourcePatternResolver resourcePatternResolver;
+
+    //Document：文档对象，用于转换成向量
+    public List<Document> loadMarkdowns() {
+        List<Document> allDocuments = new ArrayList<>();
+        try {
+            //读取resource的md文件
+            Resource[] resources = resourcePatternResolver.getResources("classpath:datum/*.md");
+            log.info("找到 {} 个Markdown文件", resources.length);
+            for (Resource resource : resources) {
+                String fileName = resource.getFilename();
+                log.info("正在处理文件: {}", fileName);
+                
+                String label = fileName;
+//                文件名格式示例：label-xxx.md
+//                取 - 前面的字符串作为文档标签，常用于分类或后续检索。
+                if (StringUtil.isNotEmpty(fileName)) {
+                    final String[] parts = fileName.split("-");
+                    if (parts.length > 1) {
+                        label = parts[0];
+                    }
+                }
+                log.info("提取的文档标签: {}", label);
+
+//                withHorizontalRuleCreateDocument(true)：按 --- 水平分隔线划分成多个文档片段。
+//                withIncludeCodeBlock(false)：忽略代码块。
+//                withIncludeBlockquote(false)：忽略引用块。
+                Builder builder = MarkdownDocumentReaderConfig.builder()
+                        // 按水平分割线分块
+                        .withHorizontalRuleCreateDocument(true)
+                        .withIncludeCodeBlock(false)
+                        .withIncludeBlockquote(false);
+                if (StringUtil.isNotEmpty(fileName)) {
+                    builder.withAdditionalMetadata("name", fileName);
+                }
+                if (StringUtil.isNotEmpty(label)) {
+                    builder.withAdditionalMetadata("label", label);
+                }
+                String keywords = extractKeywords(fileName);
+                //提取关键字
+                if (StringUtil.isNotEmpty(keywords)) {
+                    builder.withAdditionalMetadata("keywords", keywords);
+                }
+                builder.withAdditionalMetadata("source", "official_faq");
+                builder.withAdditionalMetadata("loadTime", LocalDateTime.now().toString());
+                MarkdownDocumentReaderConfig config = builder.build();
+                //Markdown 文档解析工具，把 Markdown 文件切片成小文档（片段），支持配置是否包含代码块、引用块、是否根据分隔线划分。
+                MarkdownDocumentReader markdownDocumentReader = new MarkdownDocumentReader(resource, config);
+                List<Document> documents = markdownDocumentReader.get();
+                log.info("文件 {} 加载了 {} 个文档片段", fileName, documents.size());
+                allDocuments.addAll(documents);
+            }
+            log.info("总共加载了 {} 个文档片段", allDocuments.size());
+            List<Document> splitDocuments = new ArrayList<>();
+            TokenTextSplitter splitter = new TokenTextSplitter(400, 50, 5, 10000, true);
+            
+            for (Document doc : allDocuments) {
+                if (doc.getText() != null && doc.getText().length() > 1000) {
+                    List<Document> splits = splitter.split(List.of(doc));
+                    log.info("文档[{}]过长，切分为{}个片段",
+                            doc.getMetadata().get("name"), splits.size());
+                    splitDocuments.addAll(splits);
+                } else {
+                    splitDocuments.add(doc);
+                }
+            }
+            log.info("二次切分后总共 {} 个文档片段", splitDocuments.size());
+            return splitDocuments;
+        } catch (IOException e) {
+           log.error("Markdown 文档加载失败", e);
+        }
+        return allDocuments;
+    }
+    
+    private String extractKeywords(String fileName) {
+        if (StringUtil.isEmpty(fileName)) {
+            return "";
+        }
+        Map<String, String> keywordMap = Map.of(
+            "退票", "退票,退款,取消订单,退钱",
+            "订票", "订票,购票,买票,下单",
+            "取消", "取消,作废,退款"
+        );
+        
+        StringBuilder keywords = new StringBuilder();
+        for (Map.Entry<String, String> entry : keywordMap.entrySet()) {
+            if (fileName.contains(entry.getKey())) {
+                if (keywords.length() > 0) {
+                    keywords.append(",");
+                }
+                keywords.append(entry.getValue());
+            }
+        }
+        return keywords.toString();
+    }
+}
+```
+
+1. 配置ChatClient
+
+- OpenAiChatModel model：底层对话模型，实际是调用 OpenAI API（阿里百炼）。
+- ChatMemory chatMemory：会话记忆组件，用于记录对话上下文（数据库）。
+- VectorStore vectorStore：向量数据库，用于存储与检索知识库文档（SimpleVectorStore ）。
+- MarkdownLoader markdownLoader：加载 Markdown 文档的工具类（自定义的工具）。
+- ChatTypeHistoryService chatTypeHistoryService：管理不同聊天类型的历史记录。
+- titleChatClient：另一个 ChatClient，用于单独处理对话标题。
+
+```java
+    @Bean
+    public ChatClient markdownChatClient(OpenAiChatModel model, ChatMemory chatMemory, VectorStore vectorStore,
+                                         MarkdownLoader markdownLoader, ChatTypeHistoryService chatTypeHistoryService, 
+                                         @Qualifier("titleChatClient")ChatClient titleChatClient) {
+		    //加载知识库
+        List<Document> documentList = markdownLoader.loadMarkdowns();
+        vectorStore.add(documentList);
+        
+        return ChatClient
+                .builder(model)
+                .defaultSystem(MARK_DOWN_SYSTEM_PROMPT)
+                .defaultAdvisors(
+                        new SimpleLoggerAdvisor(),
+                        ChatTypeHistoryAdvisor.builder(chatTypeHistoryService).type(ChatType.MARKDOWN.getCode()).order(CHAT_TYPE_HISTORY_ADVISOR_ORDER).build(),
+                        ChatTypeTitleAdvisor.builder(chatTypeHistoryService).type(ChatType.MARKDOWN.getCode())
+                                .chatClient(titleChatClient).chatMemory(chatMemory).order(CHAT_TITLE_ADVISOR_ORDER).build(),
+                        MessageChatMemoryAdvisor.builder(chatMemory).order(MESSAGE_CHAT_MEMORY_ADVISOR_ORDER).build(),
+    //使用 vectorStore向量库，设置检索相似度阈值为 0.3，返回前 8 个相似文档，进行 RAG 知识增强
+
+                        QuestionAnswerAdvisor.builder(vectorStore)
+                                .searchRequest(SearchRequest.builder()
+                                        .similarityThreshold(0.3)
+                                        .topK(8)
+                                        .build())
+                                .build()
+                )
+                .build();
+    }
+```
+
+**整体执行流程总结**
+
+1. 加载 Markdown 知识库，存入向量数据库.
+2. 构建 ChatClient，绑定默认系统提示词
+3. 挂载 5 个 Advisor：
+   - 日志记录
+   - 会话类型历史列表管理
+   - 对话类型记录及标题生成
+   - 会话记忆管理
+   - 向量检索问答增强
+4. 返回可用的 ChatClient 实例
+
+------
+
+## 优化RAG召回率
+
+> 召回率 = 检索到的相关文档数 / 所有相关文档总数
+
+召回率低意味着很多用户需要的相关信息没有被检索出来，导致大模型无法基于正确的上下文生成准确的回答。
+
+### 流程
+
+#### 1. 对优化文档分块策略（Chunking）
+
+```java
+            // 对过长的文档进行二次切分，增加重叠以提高召回率
+            List<Document> splitDocuments = new ArrayList<>();
+            // 参数说明：chunkSize=400token, overlap=50token重叠
+            TokenTextSplitter splitter = new TokenTextSplitter(400, 50, 5, 10000, true);
+            
+            for (Document doc : allDocuments) {
+                // 超过1000字符的文档进行二次切分
+                // 注意：Spring AI 1.0.0 使用 getText() 而不是 getContent()
+                if (doc.getText() != null && doc.getText().length() > 1000) {
+                    List<Document> splits = splitter.split(List.of(doc));
+                    log.info("文档[{}]过长，切分为{}个片段", 
+                            doc.getMetadata().get("name"), splits.size());
+                    splitDocuments.addAll(splits);
+                } else {
+                    splitDocuments.add(doc);
+                }
+            }
+            log.info("二次切分后总共 {} 个文档片段", splitDocuments.size());
+            return splitDocuments;
+```
+
+#### 2.调整检索参数
+
+**在进行文档检索前先对用户输入的提示词进行优化**
+
+```java
+@Slf4j
+public class QueryRewriteAdvisor implements BaseAdvisor {
+    
+    private final int order;
+    private final boolean enableLLMRewrite;  // 是否启用LLM改写
+    private final ChatClient rewriteClient;  // 用于改写的ChatClient
+    
+    // 同义词映射表（简化版，用于快速扩展）
+    private static final Map<String, String> SYNONYM_MAP = new HashMap<>() {{
+        put("退票", "退票 退款 取消订单");
+        put("退款", "退款 退票 退钱");
+        put("买票", "买票 购票 订票 下单");
+        put("取消", "取消 作废 退订");
+        put("演出", "演出 节目 表演 演唱会");
+        put("门票", "门票 票 入场券");
+    }};
+    
+    private QueryRewriteAdvisor(int order, boolean enableLLMRewrite, ChatClient rewriteClient) {
+        this.order = order;
+        this.enableLLMRewrite = enableLLMRewrite;
+        this.rewriteClient = rewriteClient;
+    }
+    
+    @Override
+    public ChatClientRequest before(ChatClientRequest request, AdvisorChain chain) {
+        String originalQuery = request.prompt().getUserMessage().getText();
+        log.info("原始Query: {}", originalQuery);
+        
+        String enhancedQuery;
+        if (enableLLMRewrite && rewriteClient != null) {
+            // 使用LLM进行智能改写
+            enhancedQuery = llmRewrite(originalQuery);
+        } else {
+            // 使用规则进行简单扩展
+            enhancedQuery = ruleBasedExpand(originalQuery);
+        }
+        
+        log.info("改写后Query: {}", enhancedQuery);
+        
+        // 构建新的请求（注意：实际修改方式需要根据Spring AI版本调整）
+        // 这里展示的是概念实现
+        return request;
+    }
+    
+    @Override
+    public ChatClientResponse after(ChatClientResponse response, AdvisorChain chain) {
+        return response;
+    }
+    
+    @Override
+    public int getOrder() {
+        return order;
+    }
+    
+    /**
+     * 基于规则的Query扩展
+     */
+    private String ruleBasedExpand(String query) {
+        StringBuilder expanded = new StringBuilder(query);
+        
+        for (Map.Entry<String, String> entry : SYNONYM_MAP.entrySet()) {
+            if (query.contains(entry.getKey())) {
+                expanded.append(" ").append(entry.getValue());
+            }
+        }
+        
+        return expanded.toString();
+    }
+    
+    /**
+     * 使用LLM进行智能Query改写
+     */
+    private String llmRewrite(String originalQuery) {
+        try {
+            String prompt = """
+                请将以下用户问题改写为更适合文档检索的形式，要求：
+                1. 保持原意
+                2. 扩展同义词（如：退票->退票、退款、取消订单）
+                3. 补充可能的相关概念
+                4. 只返回改写结果，不要其他内容
+                
+                原始问题：%s
+                """.formatted(originalQuery);
+            
+            return rewriteClient.prompt()
+                .user(prompt)
+                .call()
+                .content();
+        } catch (Exception e) {
+            log.warn("LLM改写失败，使用原始Query", e);
+            return originalQuery;
+        }
+    }
+    
+    // ========== Builder模式（参考ChatTypeHistoryAdvisor） ==========
+    
+    public static Builder builder() {
+        return new Builder();
+    }
+    
+    public static final class Builder {
+        private int order = Ordered.HIGHEST_PRECEDENCE + 50;  // 在RAG检索之前执行
+        private boolean enableLLMRewrite = false;
+        private ChatClient rewriteClient;
+        
+        public Builder order(int order) {
+            this.order = order;
+            return this;
+        }
+        
+        public Builder enableLLMRewrite(boolean enable) {
+            this.enableLLMRewrite = enable;
+            return this;
+        }
+        
+        public Builder rewriteClient(ChatClient client) {
+            this.rewriteClient = client;
+            return this;
+        }
+        
+        public QueryRewriteAdvisor build() {
+            return new QueryRewriteAdvisor(order, enableLLMRewrite, rewriteClient);
+        }
+    }
+}
+```
+
+**调整检索参数并加上Advisor**
+
+```java
+    return ChatClient
+            .builder(model)
+            .defaultSystem(MARK_DOWN_SYSTEM_PROMPT)
+            .defaultAdvisors(
+                    new SimpleLoggerAdvisor(),
+                    // ========== 👇 新增QueryRewriteAdvisor 👇 ==========
+                    QueryRewriteAdvisor.builder()
+                            // 在RAG之前执行
+                            .order(Ordered.HIGHEST_PRECEDENCE + 50)
+                            // 先用规则扩展，降低延迟
+                            .enableLLMRewrite(false)  
+                            .build(),
+                    // ========== 👆 新增结束 👆 ==========
+                    ChatTypeHistoryAdvisor.builder(chatTypeHistoryService).type(ChatType.MARKDOWN.getCode())
+                            .order(CHAT_TYPE_HISTORY_ADVISOR_ORDER).build(),
+                    ChatTypeTitleAdvisor.builder(chatTypeHistoryService).type(ChatType.MARKDOWN.getCode())
+                            .chatClient(titleChatClient).chatMemory(chatMemory).order(CHAT_TITLE_ADVISOR_ORDER).build(),
+                    MessageChatMemoryAdvisor.builder(chatMemory).order(MESSAGE_CHAT_MEMORY_ADVISOR_ORDER).build(),
+                    // RAG检索配置：降低阈值、增加TopK可提高召回率
+                    QuestionAnswerAdvisor.builder(vectorStore)
+                            .searchRequest(SearchRequest.builder()
+                                    // 降低阈值：0.3 -> 0.25，提高召回率
+                                    .similarityThreshold(0.25)
+                                    // 增加数量：8 -> 12，召回更多候选
+                                    .topK(12)                   
+                                    .build())
+                            .build()
+            )
+            .build();
+```
+
+#### 3. 进行关键词检索和向量库检索混合
+
+**取消`QuestionAnswerAdvisor`的使用 手动进行检索**
+
+```java
+@Slf4j
+@Service
+public class HybridSearchService {
+    
+    @Autowired
+    private VectorStore vectorStore;
+    
+    @Autowired
+    private RerankService rerankService;
+    
+    /**
+     * 文档缓存（简化版，生产环境建议用ES或其他存储）
+     * */
+    private final Map<String, Document> documentCache = new HashMap<>();
+    
+    /**
+     * 缓存文档（在加载文档时调用）
+     */
+    public void cacheDocuments(List<Document> documents) {
+        for (Document doc : documents) {
+            documentCache.put(doc.getId(), doc);
+        }
+        log.info("已缓存 {} 个文档用于关键词检索", documents.size());
+    }
+    
+    /**
+     * 混合检索入口
+     * @param query 用户查询
+     * @param topK 返回结果数量
+     * @return 融合后的文档列表
+     */
+    public List<Document> hybridSearch(String query, int topK) {
+        return hybridSearch(query, topK, true);
+    }
+    
+    /**
+     * 混合检索入口（可控制是否启用Rerank）
+     * @param query 用户查询
+     * @param topK 返回结果数量
+     * @param enableRerank 是否启用Rerank精排
+     * @return 融合后的文档列表
+     */
+    public List<Document> hybridSearch(String query, int topK, boolean enableRerank) {
+        // 1. 向量检索
+        List<Document> vectorResults = vectorStore.similaritySearch(
+            SearchRequest.builder()
+                .query(query)
+                .topK(topK)
+                .similarityThreshold(0.2)
+                .build()
+        );
+        if (vectorResults != null) {
+            log.info("向量检索返回 {} 个结果", vectorResults.size());
+        }
+        
+        // 2. 关键词检索（BM25简化版）
+        List<Document> keywordResults = keywordSearch(query, topK);
+        log.info("关键词检索返回 {} 个结果", keywordResults.size());
+        
+        // 3. RRF融合（召回更多候选，如2倍topK）
+        List<Document> merged = new ArrayList<>();
+        if (CollectionUtil.isNotEmpty(vectorResults)) {
+            merged = mergeWithRRF(vectorResults, keywordResults, topK * 2);
+        }
+        if (merged != null) {
+            log.info("RRF融合后返回 {} 个结果", merged.size());
+        }
+        
+        // 4. Rerank精排（对融合结果进行二次排序，筛选出最终topK个）
+        if (enableRerank && CollectionUtil.isNotEmpty(merged)) {
+            List<Document> reranked = rerankService.rerank(query, merged, topK);
+            log.info("Rerank精排后返回 {} 个结果", reranked.size());
+            return reranked;
+        }
+        
+        return merged.size() > topK ? merged.subList(0, topK) : merged;
+    }
+    
+    /**
+     * 简化版关键词检索（基于字符串匹配）
+     */
+    private List<Document> keywordSearch(String query, int topK) {
+        // 提取查询关键词
+        String[] keywords = query.split("[\\s,，。？?！!]+");
+        
+        return documentCache.values().stream()
+            .map(doc -> {
+                // 计算关键词匹配分数
+                String docText = doc.getText();
+                if (docText == null) {
+                    return new AbstractMap.SimpleEntry<>(doc, 0L);
+                }
+                long matchCount = Arrays.stream(keywords)
+                    .filter(kw -> kw.length() > 1 && docText.contains(kw))
+                    .count();
+                return new AbstractMap.SimpleEntry<>(doc, matchCount);
+            })
+            .filter(e -> e.getValue() > 0)
+            .sorted((a, b) -> Long.compare(b.getValue(), a.getValue()))
+            .limit(topK)
+            .map(Map.Entry::getKey)
+            .collect(Collectors.toList());
+    }
+    
+    /**
+     * RRF融合算法（Reciprocal Rank Fusion）
+     * 公式：score = Σ 1/(k + rank_i)
+     */
+    private List<Document> mergeWithRRF(
+            List<Document> vectorResults, 
+            List<Document> keywordResults, 
+            int topK) {
+        
+        Map<String, Double> scoreMap = new HashMap<>(vectorResults.size());
+        Map<String, Document> docMap = new HashMap<>(vectorResults.size());
+        // RRF常数
+        int k = 60; 
+        
+        // 计算向量检索结果的分数
+        for (int i = 0; i < vectorResults.size(); i++) {
+            Document doc = vectorResults.get(i);
+            String id = doc.getId();
+            scoreMap.merge(id, 1.0 / (k + i + 1), Double::sum);
+            docMap.put(id, doc);
+        }
+        
+        // 计算关键词检索结果的分数
+        for (int i = 0; i < keywordResults.size(); i++) {
+            Document doc = keywordResults.get(i);
+            String id = doc.getId();
+            scoreMap.merge(id, 1.0 / (k + i + 1), Double::sum);
+            docMap.put(id, doc);
+        }
+        
+        // 按融合分数排序返回topK
+        return scoreMap.entrySet().stream()
+            .sorted(Map.Entry.<String, Double>comparingByValue().reversed())
+            .limit(topK)
+            .map(e -> docMap.get(e.getKey()))
+            .filter(Objects::nonNull)
+            .collect(Collectors.toList());
+    }
+}
+```

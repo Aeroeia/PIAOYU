@@ -47,6 +47,7 @@ public class ProgramController {
     public Flux<String> rag(@RequestParam("prompt") String prompt,
                             @RequestParam("chatId") String chatId) {
         final Integer ragTwoVersionValue = 2;
+        StringBuilder sbu = new StringBuilder();
         if (ragVersion.equals(ragTwoVersionValue)) {
             List<Document> documents = hybridSearchService.hybridSearch(prompt, 10, true);
             log.info("混合检索返回 {} 个文档", documents.size());
