@@ -88,7 +88,6 @@ public class HybridSearchService {
     }
     
     private List<Document> keywordSearch(String query, int topK) {
-      
         String[] keywords = query.split("[\\s,，。？?！!]+");
         
         return documentCache.values().stream()
