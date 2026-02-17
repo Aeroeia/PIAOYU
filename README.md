@@ -2340,3 +2340,250 @@ public class HybridSearchService {
     }
 }
 ```
+## MCP
+### 本地MCP调用
+![](Pasted%20image%2020260214234134.png)
+- **  AI 模型**就像一个非常聪明的"大脑"，它懂很多知识，能回答各种问题  
+  但这个"大脑"**被关在一个房间里**，它看不到外面的世界，也无法操作任何东西
+
+
+- **MCP** 就像是给这个房间装了一扇"窗户"和一双"手"，让 AI 能够：
+
+    - 👀**看到**外部世界的真实数据（文件、数据库、API等）
+
+
+    - 🤚 **操作**外部系统（读写文件、调用服务等）
+#### 配置使用
+1. 引入依赖
+```xml
+<!-- MCP Client - 用于调用外部MCP服务 -->
+<dependency>
+    <groupId>org.springframework.ai</groupId>
+    <artifactId>spring-ai-starter-mcp-client</artifactId>
+</dependency>
+```
+2. 在`mcp-servers.json`中，集成了 MCP Filesystem 服务器，配置如下：
+```json
+{
+  // MCP 服务器配置列表
+  "mcpServers": {
+    // 定义一个名为 filesystem 的 MCP 工具服务
+    "filesystem": {
+      // 使用 npx 启动 MCP 文件系统服务器
+      "command": "npx",
+
+      // 启动参数
+      "args": [
+        "-y", 
+        // 自动确认安装依赖（避免交互提示）
+        "@modelcontextprotocol/server-filesystem",
+        // 允许访问的根目录路径
+        "/Applications/java/idea_work_my/gitee/damai-ai"
+      ]
+    }
+  }
+}
+```
+3. 在项目的配置文件中，要指定集成 MCP 的配置，`mcp-servers.json`：
+```yaml
+mcp:  
+  client:  
+    stdio:  
+      servers-configuration: classpath:mcp-servers.json
+```
+4. 配置Bean
+```java
+@Configuration
+public class McpClientConfig {
+
+    /**
+     * 将MCP客户端的工具注册为ToolCallbackProvider
+     * 这样ChatClient就可以使用MCP服务器提供的工具了
+     */
+    @Bean
+    public ToolCallbackProvider mcpToolCallbackProvider(List<McpSyncClient> mcpSyncClients) {
+        return new SyncMcpToolCallbackProvider(mcpSyncClients);
+    }
+}
+```
+5. 使用
+```java
+    /**
+     * 使用MCP工具的聊天接口
+     * MCP Filesystem服务器让AI能够操作文件系统（AI本身做不到的事情）：
+     * 示例问题：
+     * "帮我读取项目根目录下的pom.xml文件内容"
+     */
+    @RequestMapping(value = "/chat/mcp", produces = "text/html;charset=utf-8")
+    public Flux<String> chatWithMcp(@RequestParam("prompt") String prompt) {
+        return chatClient.prompt()
+                .user(prompt)
+                // 注入MCP工具
+                .toolCallbacks(mcpToolCallbackProvider)
+                .stream()
+                .content();
+    }
+}
+```
+## 自定义/远程MCP
+### 架构图
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│                        前端应用                                  │
+└─────────────────────────────┬───────────────────────────────────┘
+                              │ HTTP请求
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                   damai-core-service (AI核心服务)               │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  │
+│  │   ChatClient    │  │  ToolCallback   │  │   Advisors      │  │
+│  │   (DeepSeek)    │  │   Provider      │  │   (记忆/历史)   │  │
+│  └────────┬────────┘  └────────┬────────┘  └─────────────────┘  │
+│           │                    │                                 │
+│           └─────────┬──────────┘                                 │
+│                     │ MCP SSE 协议                               │
+└─────────────────────┼───────────────────────────────────────────┘
+                      ▼
+┌─────────────────────────────────────────────────────────────────┐
+│               damai-mcp-log-service (MCP日志服务)               │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │                  LogQueryMcpTool                         │    │
+│  │  ┌────────────┐ ┌────────────┐ ┌────────────┐           │    │
+│  │  │ 服务列表   │ │ 关键词搜索 │ │ 链路追踪   │           │    │
+│  │  └────────────┘ └────────────┘ └────────────┘           │    │
+│  │  ┌────────────┐ ┌────────────┐ ┌────────────┐           │    │
+│  │  │ 最新日志   │ │ 错误日志   │ │ 日志统计   │           │    │
+│  │  └────────────┘ └────────────┘ └────────────┘           │    │
+│  └─────────────────────────────────────────────────────────┘    │
+└─────────────────────────────┬───────────────────────────────────┘
+                              │ Easy-ES
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      Elasticsearch                               │
+│                   (damai-logs-* 索引)                           │
+└─────────────────────────────────────────────────────────────────┘
+```
+### 客户端配置
+1. pom
+```xml
+<!-- MCP Client - 用于调用外部MCP服务 -->
+<dependency>
+    <groupId>org.springframework.ai</groupId>
+    <artifactId>spring-ai-starter-mcp-client</artifactId>
+</dependency>
+```
+2. application.yaml
+```yaml
+spring:
+  ai:
+    mcp:
+      client:
+        sse:
+          connections:
+            damai-log:
+              url: http://localhost:8085
+```
+- `   sse.connections`: 使用SSE（Server-Sent Events）方式连接MCP服务
+
+
+- `damai-log`: MCP日志服务的连接名称
+
+
+- `url`: MCP服务的访问地址
+
+3. Bean配置
+```java
+@Bean
+public ChatClient analysisChatClient(DeepSeekChatModel model, ChatMemory chatMemory,
+                                      ChatTypeHistoryService chatTypeHistoryService,
+                                      @Qualifier("titleChatClient")ChatClient titleChatClient,
+                                      @Qualifier("mcpToolCallbackProvider") ToolCallbackProvider mcpToolCallbackProvider) {
+    return ChatClient
+            .builder(model)
+            .defaultSystem(DaMaiConstant.DA_MAI_ANALYSIS_PROMPT)
+            .defaultAdvisors(
+                    new SimpleLoggerAdvisor(),
+                    ChatTypeHistoryAdvisor.builder(chatTypeHistoryService).type(ChatType.ANALYSIS.getCode())
+                            .order(CHAT_TYPE_HISTORY_ADVISOR_ORDER).build(),
+                    ChatTypeTitleAdvisor.builder(chatTypeHistoryService).type(ChatType.ANALYSIS.getCode())
+                            .chatClient(titleChatClient).chatMemory(chatMemory).order(CHAT_TITLE_ADVISOR_ORDER).build(),
+                    MessageChatMemoryAdvisor.builder(chatMemory).order(MESSAGE_CHAT_MEMORY_ADVISOR_ORDER).build()
+            )
+            // 使用 MCP 工具（日志查询等）
+            .defaultToolCallbacks(mcpToolCallbackProvider)
+            .build();
+}
+```
+4. Controller
+```java
+    @RequestMapping(value = "/chat/mcp", produces = "text/html;charset=utf-8")
+    public Flux<String> chatMcp(@RequestParam("prompt") String prompt,
+                                @RequestParam("chatId") String chatId) {
+        // 请求模型（MCP工具已在 analysisChatClient 中全局配置）
+        return analysisChatClient.prompt()
+                .user(prompt)
+                .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, chatId))
+                .stream()
+                .content();
+    }
+```
+### 服务端配置
+1. application.yaml
+```yaml
+server:
+  port: 8085
+
+spring:
+  application:
+    name: damai-mcp-log-service
+  main:
+    # 使用WebFlux支持SSE
+    web-application-type: reactive
+
+# MCP Server配置
+spring.ai.mcp.server:
+  # MCP Server名称
+  name: damai-log-mcp
+  # MCP Server版本
+  version: 1.0.0
+  # 禁用STDIO传输，使用SSE方式
+  stdio: false
+  # SSE端点路径
+  sse-endpoint: /sse
+  # SSE消息端点路径
+  sse-message-endpoint: /mcp/message
+
+# Easy-ES 配置 - 连接 Elasticsearch
+easy-es:
+  enable: true
+  address: 127.0.0.1:9200
+  username: elastic
+  password: elastic
+```
+2. pom
+```xml
+<!-- MCP Server WebFlux Starter - 支持SSE远程访问 -->
+<dependency>
+    <groupId>org.springframework.ai</groupId>
+    <artifactId>spring-ai-starter-mcp-server-webflux</artifactId>
+</dependency>
+<!-- Easy-ES - Elasticsearch ORM框架 -->
+<dependency>
+    <groupId>org.dromara.easy-es</groupId>
+    <artifactId>easy-es-boot-starter</artifactId>
+    <version>${easy-es.version}</version>
+</dependency>
+```
+3. LogQueryMcpTool 功能(`FunctionCalling`)
+
+|功能名称|方法名|功能描述|
+|---|---|---|
+|获取服务列表|`getServiceList()`|获取大麦系统中所有可用的微服务列表|
+|关键词搜索|`searchLogsByKeyword()`|根据关键词搜索日志内容，支持模糊匹配|
+|链路追踪|`getLogsByTraceId()`|通过traceId查询完整的调用链路日志|
+|最新日志|`getLatestLogs()`|查询指定微服务的最新日志记录|
+|错误日志|`getErrorLogs()`|查询系统中的错误日志（ERROR级别）|
+|警告日志|`getWarnLogs()`|查询系统中的警告日志（WARN级别）|
+|日志统计|`getLogStatistics()`|获取各微服务的日志统计概览|
+|类/方法搜索|`searchLogsByClass()`|根据类名或方法名搜索日志|
+
