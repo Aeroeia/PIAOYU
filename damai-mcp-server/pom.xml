@@ -13,6 +13,7 @@
     <packaging>pom</packaging>
     <modules>
         <module>damai-mcp-log-service</module>
+        <module>damai-mcp-metric-service</module>
     </modules>
 
     <properties>

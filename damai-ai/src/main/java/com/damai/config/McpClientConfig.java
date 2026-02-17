@@ -1,10 +1,6 @@
 package com.damai.config;
 
-import com.damai.advisor.ChatTypeHistoryAdvisor;
-import com.damai.advisor.ChatTypeTitleAdvisor;
-import com.damai.constants.DaMaiConstant;
-import com.damai.enums.ChatType;
-import com.damai.service.ChatTypeHistoryService;
+
 import io.modelcontextprotocol.client.McpSyncClient;
 
 import org.springframework.ai.mcp.SyncMcpToolCallbackProvider;
