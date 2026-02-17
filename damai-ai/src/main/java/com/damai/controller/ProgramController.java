@@ -16,7 +16,7 @@ import reactor.core.publisher.Flux;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static com.damai.constants.DaMaiConstant.RAG_VERSION;
+import static com.damai.constants.DaMaiConstant.*;
 
 
 @RestController
@@ -27,6 +27,8 @@ public class ProgramController {
     private ChatClient assistantChatClient;
     @Resource
     private ChatClient markdownChatClient;
+    @Resource
+    private ChatClient analysisChatClient;
     @Autowired
     private HybridSearchService hybridSearchService;
     // 👇 新增：普通和优化的版本配置
@@ -78,5 +80,16 @@ public class ProgramController {
                 .stream()
                 .content();
     }
+    @RequestMapping(value = "/chat/mcp", produces = "text/html;charset=utf-8")
+    public Flux<String> chatMcp(@RequestParam("prompt") String prompt,
+                                @RequestParam("chatId") String chatId) {
+        // 请求模型（MCP工具已在 analysisChatClient 中全局配置）
+        return analysisChatClient.prompt()
+                .user(prompt)
+                .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, chatId))
+                .stream()
+                .content();
+    }
+
 
 }

@@ -73,7 +73,6 @@
             <appender-ref ref="RollingFile"/>
             <appender-ref ref="RollingFileError"/>
             <appender-ref ref="Logstash"/>
-
         </root>
     </Loggers>
 </Configuration>

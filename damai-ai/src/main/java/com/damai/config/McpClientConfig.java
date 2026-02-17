@@ -1,8 +1,15 @@
 package com.damai.config;
 
+import com.damai.advisor.ChatTypeHistoryAdvisor;
+import com.damai.advisor.ChatTypeTitleAdvisor;
+import com.damai.constants.DaMaiConstant;
+import com.damai.enums.ChatType;
+import com.damai.service.ChatTypeHistoryService;
 import io.modelcontextprotocol.client.McpSyncClient;
+
 import org.springframework.ai.mcp.SyncMcpToolCallbackProvider;
 import org.springframework.ai.tool.ToolCallbackProvider;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -19,4 +26,5 @@ public class McpClientConfig {
     public ToolCallbackProvider mcpToolCallbackProvider(List<McpSyncClient> mcpSyncClients) {
         return new SyncMcpToolCallbackProvider(mcpSyncClients);
     }
+
 }
