@@ -39,7 +39,8 @@
 		<module>damai-server-client</module>
 		<module>damai-captcha-manage-framework</module>
 		<module>damai-ai</module>
-	</modules>
+        <module>damai-mcp-server</module>
+    </modules>
 
 	<properties>
 		<revision>0.0.1-SNAPSHOT</revision>

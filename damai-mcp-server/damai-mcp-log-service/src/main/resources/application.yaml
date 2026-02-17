@@ -1,0 +1,43 @@
+# 大麦日志查询 MCP Server 配置
+server:
+  port: 8085
+
+spring:
+  application:
+    name: damai-mcp-log-service
+  main:
+    # 使用WebFlux支持SSE
+    web-application-type: reactive
+
+# MCP Server配置
+spring.ai.mcp.server:
+  # MCP Server名称
+  name: damai-log-mcp
+  # MCP Server版本
+  version: 1.0.0
+  # 禁用STDIO传输，使用SSE方式（配合WebFlux）
+  stdio: false
+  # SSE端点路径
+  sse-endpoint: /sse
+  # SSE消息端点路径
+  sse-message-endpoint: /mcp/message
+
+# Easy-ES 配置 - 连接 Elasticsearch
+easy-es:
+  enable: true
+  # ES 连接地址，根据实际情况修改
+  address: 127.0.0.1:9200
+  # 如果ES有认证，配置用户名密码
+  username: elastic
+  password: 890890
+  # 全局索引前缀（可选）
+  global-config:
+    # 不使用全局前缀，因为索引名已经是 damai-logs-*
+    process-index-mode: manual
+
+# 日志配置
+logging:
+  level:
+    root: INFO
+    org.javaup.mcp: INFO
+    org.dromara.easyes: INFO
