@@ -31,11 +31,10 @@ import static com.damai.constants.DaMaiConstant.*;
 
 @AutoConfigureAfter(DaMaiAiAutoConfiguration.class)
 public class DaMaiRagAiAutoConfiguration {
-    //基于JVM内存的数据库 生成文件进行持久化 重启重新读取到内存
-    @Bean
-    public VectorStore vectorStore(OpenAiEmbeddingModel openAiEmbeddingModel) {
-        return SimpleVectorStore.builder(openAiEmbeddingModel).build();
-    }
+//    @Bean
+//    public VectorStore vectorStore(OpenAiEmbeddingModel openAiEmbeddingModel) {
+//        return SimpleVectorStore.builder(openAiEmbeddingModel).build();
+//    }
 
     @Bean
     public MarkdownLoader markdownLoader(ResourcePatternResolver resourcePatternResolver) {
@@ -58,9 +57,12 @@ public class DaMaiRagAiAutoConfiguration {
     @Bean
     public ChatClient markdownChatClient(OpenAiChatModel model, ChatMemory chatMemory, VectorStore vectorStore,
                                          MarkdownLoader markdownLoader, ChatTypeHistoryService chatTypeHistoryService,
-                                         @Qualifier("titleChatClient")ChatClient titleChatClient){
-        List<Document> documentList = markdownLoader.loadMarkdowns();
-        vectorStore.add(documentList);
+                                         @Qualifier("titleChatClient")ChatClient titleChatClient,
+                                         @org.springframework.beans.factory.annotation.Value("${spring.ai.vectorstore.initialize:false}") boolean initialize){
+        if (initialize) {
+            List<Document> documentList = markdownLoader.loadMarkdowns();
+            vectorStore.add(documentList);
+        }
 
         return ChatClient
                 .builder(model)
@@ -86,12 +88,14 @@ public class DaMaiRagAiAutoConfiguration {
     public ChatClient markdownChatClient(OpenAiChatModel model, ChatMemory chatMemory, VectorStore vectorStore,
                                          MarkdownLoader markdownLoader, ChatTypeHistoryService chatTypeHistoryService,
                                          @Qualifier("titleChatClient")ChatClient titleChatClient,
-                                         HybridSearchService hybridSearchService) {  //  新增参数
-        List<Document> documentList = markdownLoader.loadMarkdowns();
-        vectorStore.add(documentList);
-
-        // ==========  新增：缓存文档到混合检索服务  ==========
-        hybridSearchService.cacheDocuments(documentList);
+                                         HybridSearchService hybridSearchService,
+                                         @org.springframework.beans.factory.annotation.Value("${spring.ai.vectorstore.initialize:false}") boolean initialize) {  //  新增参数
+        if (initialize) {
+            List<Document> documentList = markdownLoader.loadMarkdowns();
+            vectorStore.add(documentList);
+            // ==========  新增：缓存文档到混合检索服务  ==========
+            hybridSearchService.cacheDocuments(documentList);
+        }
 
         return ChatClient
                 .builder(model)
