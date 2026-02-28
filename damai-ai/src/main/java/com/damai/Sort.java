@@ -7,10 +7,10 @@ import java.util.Arrays;
 //快速排序，归并排序
 public class Sort {
     public static void main(String[] args) {
-//        int[] arr = {0,4,2,6,3,7,1,9,5};
-//        int[] sorted = {1,2,3,4,6,6,7,8,9,10};
-//        quickSort(arr,0,arr.length-1);
-//        System.out.println(Arrays.toString(arr));
+        int[] arr = {0,4,2,6,3,7,1,9,5};
+        int[] sorted = {1,2,3,4,6,6,7,8,9,10};
+        quickSort(arr,0,arr.length-1);
+        System.out.println(Arrays.toString(arr));
         threadPrint();
     }
     static int cnt = 0;

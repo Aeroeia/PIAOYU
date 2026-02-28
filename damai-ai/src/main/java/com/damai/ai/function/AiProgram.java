@@ -81,7 +81,7 @@ public class AiProgram {
             return null;
         }
         ProgramDetailVo programDetailVo = programDetailResultVo.getData();
-        //由于详情中设置的飘荡数量不可看 因此再一次查询
+        //由于详情中设置的票档数量不可看 因此再一次查询
         TicketCategoryListByProgramDto ticketCategoryListByProgramDto = new TicketCategoryListByProgramDto();
         ticketCategoryListByProgramDto.setProgramId(programDetailVo.getId());
         List<TicketCategoryDetailVo> ticketCategoryDetailVoList = ticketCategoryCall.selectListByProgram(ticketCategoryListByProgramDto);

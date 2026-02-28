@@ -2,6 +2,34 @@
 
 ## 高性能节目详情展示功能
 
+```mermaid
+graph TD
+    Batch([大量并发请求]) --> R1[从 Redis 查询]
+    R1 --> E1{是否存在?}
+    
+    E1 -- 是 --> Return[/返回数据/]
+    
+    E1 -- 否 --> Lock[获取分布式锁 tryLock]
+    
+    subgraph Double_Check [双重检查锁内部]
+        Lock --> R2[再次从 Redis 查询]
+        R2 --> E2{是否存在?}
+        
+        E2 -- 否 --> DB[穿透查询数据库]
+        DB --> Set[设置到 Redis 缓存]
+        
+        E2 -- 是 --> Unlock[释放分布式锁]
+        Set --> Unlock
+    end
+
+    Unlock --> Return
+
+    style Double_Check fill:#f9f9f9,stroke:#999
+    style Lock fill:#e1f5fe,stroke:#01579b
+```
+
+
+
 ```java
 @Operation(summary  = "查询详情(根据id)")
 @PostMapping(value = "/detail")
@@ -50,7 +78,7 @@ ProgramShowTime programShowTime =
 
 1. 首先查询本地缓存[LocalCacheProgramShowTime](file:///Users/aer/IdeaProjects/damai/damai-server/damai-program-service/src/main/java/com/damai/service/cache/local/LocalCacheProgramShowTime.java#L32-L75)
 2. 本地缓存未命中则查询Redis缓存
-3. Redis缓存未命中则通过分布式锁查询数据库并写入缓存 ==分布式锁是为了缓解高并发数据库压力==
+3. Redis缓存未命中则通过分布式锁查询数据库并写入缓存 **分布式锁是为了缓解高并发数据库压力**==
 
 **步骤2：获取节目基本信息**
 
@@ -222,7 +250,30 @@ try {
 
 ### 为什么将节目多个部分分开存储到Redis
 
-![查看节目详情.png](assets/1721723736110-45140271-c2fc-459c-8f9e-7457bc7022fb.png)
+```mermaid
+graph LR
+    subgraph DB [数据库源]
+        D1[节目时间]
+        D2[节目详情]
+        D3[分组列表]
+        D4[购票人列表]
+        D5[订单统计]
+        D6[票档详情]
+    end
+
+    D1 & D2 & D3 & D4 & D5 & D6 --> Sync{同步预热}
+
+    subgraph Cache [Redis 缓存层]
+        R1[Program_Time_Key]
+        R2[Program_Detail_Key]
+        R3[Group_List_Key]
+        R4[User_Purchaser_Key]
+        R5[Order_Count_Key]
+        R6[Ticket_Category_Key]
+    end
+
+    Sync --> R1 & R2 & R3 & R4 & R5 & R6
+```
 
 1. **数据更新频率不同**
    - 节目基本信息（如标题、演员等）很少变化，可以长时间缓存
@@ -273,8 +324,6 @@ try {
 
 **存在一个问题：如果发生网络问题，一秒内没将数据存到redis中，还是会有大量数据打入数据库导致缓存击穿，但高并发与绝对安全不可兼得，要作出取舍**
 
-![Redis缓存+双重检测+tryLock.png](assets/1712644645064-cfa44494-ce92-4eb6-a58c-88d61d545fe1.png)
-
 ------
 
 ## 用户选择节目座位
@@ -304,7 +353,7 @@ try {
 
 ![image-20250929205051041](assets/image-20250929205051041.png)
 
-根据票的状态进行分开存放，==但还是在一个redis实例中(保证lua脚本读)==
+根据票的状态进行分开存放，**但还是在一个redis实例中(保证lua脚本读）**
 
 ```java
  public List<SeatVo> getSeatVoListByCacheResolution(Long programId,Long ticketCategoryId){
@@ -322,8 +371,6 @@ try {
 ------
 
 ## 解决高并发下购票压力 
-
-![购票流程V1.png](assets/1723690965796-2001f2f8-b7d2-4307-bdba-9355c89b4693.png)
 
 ------
 
@@ -475,11 +522,7 @@ for index, seat in pairs(add_seat_data_list) do
 end
 ```
 
-![image-20251002175420114](assets/image-20251002175420114.png)
-
-![image-20251110100456608](assets/image-20251110100456608.png)
-
-感觉可以将票档余票数量结构改成==redis中key只包含节目id hash中存不同票档的余票数量==
+感觉可以将票档余票数量结构改成**redis中key只包含节目id hash中存不同票档的余票数量**
 
 9. 创建主订单和购票人订单(order&order_ticket_user)
 
@@ -511,9 +554,40 @@ end
 - 加入本地锁 缓解redis压力
 - 由于网络可能有差异 先进入本地锁的不一定先竞争到分布式锁
 
-![用户购票分布式锁V2(加入本地锁).png](assets/1723690792208-2cd0aedb-e544-4b8b-8746-bcfb9c10c4c9.png)
+```mermaid
+graph TD
+    subgraph Users [用户请求层]
+        R1((请求1)) & R2((请求2)) & R3((请求3)) & R4((请求4))
+    end
 
-![本地锁+分布式锁公平性.png](assets/1723690824820-4361ae1c-6f08-4e5f-a975-119afe7b3e84.png)
+    subgraph Tickets [票档层]
+        R1 --> T1[一等票]
+        R2 --> T2[一等票]
+        R3 --> T3[一等票]
+        R4 --> T4[一等票]
+    end
+
+    subgraph Local_Locks [本地锁层 - 实例过滤]
+        T1 & T2 --> L1[实例1本地锁1]
+        T3 & T4 --> L2[实例2本地锁2]
+    end
+
+    subgraph Global_Lock [分布式锁层 - 全局唯一]
+        L1 & L2 --> DL((分布式锁))
+    end
+
+    DL --> O1[订单生成]
+    DL --> O2[订单生成]
+    DL --> O3[订单生成]
+    DL --> O4[订单生成]
+
+    classDef global fill:#f66,color:#fff,stroke-width:2px;
+    class DL global
+```
+
+
+
+
 
 ![image-20251006143033740](assets/image-20251006143033740.png)
 
@@ -521,23 +595,76 @@ end
 
 ### 无锁化 V3
 
-前面做的事情主要是==三重验证==、加==幂等锁==给==不同票档加本地锁==、==计算不同票档所需票==、给lua脚本中key加标识看是否为手动选座，==手动选座则传入dto中的选座信息==
+前面做的事情主要是三重验证、加幂等锁给不同票档加本地锁、计算不同票档所需票、给lua脚本中key加标识看是否为手动选座，手动选座则传入dto中的选座信息
 
 Lua脚本执行流程图
 
-![bdc1ced9-4238-4fb0-a844-1e8101dc0415](assets/bdc1ced9-4238-4fb0-a844-1e8101dc0415.png)
+```mermaid
+graph TD
+    Start([执行 Lua 逻辑]) --> Type{座位匹配类型}
+    
+    subgraph Match_Logic [校验阶段]
+        Type -- 手动 --> M1[验证余票数量]
+        M1 --> M2[验证座位状态]
+        M2 --> M3[验证座位总价]
+        
+        Type -- 自动 --> A1[验证余票数量]
+        A1 --> A2[算法匹配座位]
+        A2 --> A3[验证匹配数 >= 购买数]
+    end
+    
+    M3 & A3 --> Action[开始原子扣除操作]
+    
+    subgraph Atomic_Op [原子更新阶段]
+        Action --> U1[扣除对应余票数量]
+        U1 --> U2[从未售卖集合删除座位]
+        U2 --> U3[在锁定集合增加座位]
+    end
+    
+    U3 --> End[/返回购买的座位数据/]
+
+    style Type fill:#dfd,stroke:#333
+    style Atomic_Op fill:#ffe,stroke:#333
+```
+
+
 
 ------
 
 ### 调用Kafka异步创建订单 V4
 
-![用户购票v4.png](assets/1720954650416-a9595510-d817-402b-a1e7-aacf2f9ea18f.png)
+```mermaid
+graph TD
+    Req([用户请求]) --> FE[前端服务]
+    
+    FE --> Polling{5s内轮询/200ms}
+    Polling --> Show[演唱会业务入口]
+    Show --> Lua[Redis + Lua 原子预扣]
+    
+    Lua --> Check{余票 > 0?}
+    
+    Check -- 否 --> SoldOut[通知用户无余票]
+    
+    Check -- 是 --> MQ_Send[订单信息发送]
+    MQ_Send --> Kafka[[Kafka 消息队列]]
+    Kafka --> MQ_Cons[订单服务消费]
+    
+    MQ_Cons --> DB_Write[订单入库同步]
+    MQ_Cons --> Cache_Write[订单同步Redis]
+    
+    DB_Write & Cache_Write --> Polling
+
+    style Kafka fill:#1e88e5,color:#fff
+    style Lua fill:#1e88e5,color:#fff
+```
+
+
 
 ![image-20251228151658854](assets/image-20251228151658854.png)
 
 ![image-20251007034622425](assets/image-20251007034622425.png)
 
-==lathch的作用是等待kafka发送消息完毕==
+lathch的作用是等待kafka发送消息完毕
 
 **消费者**
 
@@ -592,7 +719,7 @@ public class CreateOrderConsumer {
 
 ![image-20251009162933876](assets/image-20251009162933876.png)
 
-这里将订单编号放入redis是为了==虽然第2步返回了订单编号，但由于异步场景，不一定真正的入库了，所以前端要有个定时任务，不断的去轮训订单是否真的存在，如果查询到了，才说明订单是真正的创建成功==
+这里将订单编号放入redis是为了**虽然第2步返回了订单编号，但由于异步场景，不一定真正的入库了，所以前端要有个定时任务，不断的去轮训订单是否真的存在，如果查询到了，才说明订单是真正的创建成功**
 前端服务在轮训时，能更快的查询到。因为redis的性能要比数据库强太多，所以让前端服务直接去redis查询就可以了，数据也不用复杂，订单编号就可以。但是不能一直存放，要设置一个过期时间，这里设置了1分钟
 
 ![image-20251009163223981](assets/image-20251009163223981.png)
@@ -605,7 +732,28 @@ public class CreateOrderConsumer {
 
 ### 支付流程
 
-![支付流程.png](assets/1723691350784-6d8cc0ea-fbe9-4ed7-b221-441fdf9988e4.png)
+```mermaid
+graph TD
+    User([用户]) -->|支付请求| Page[订单页面]
+    Page --> OS1[订单服务]
+    OS1 --> Logic[执行支付逻辑]
+    Logic --> PS1[调用支付服务]
+    PS1 --> API1[调用支付宝/微信 API]
+    
+    API1 -.->|用户扫码支付| API2[三方处理支付结果]
+    API2 -->|回调通知| Notify[支付后回调通知]
+    
+    subgraph Update_Process [状态同步更新]
+        Notify --> OS2[订单服务]
+        OS2 --> OS_Status[更新订单状态]
+        OS2 --> PS2[调用支付服务]
+        PS2 --> PS_Status[更新流水账单状态]
+    end
+
+    style Update_Process fill:#f0faff,stroke:#007acc
+```
+
+
 
 ------
 
@@ -618,7 +766,7 @@ public class CreateOrderConsumer {
 **返回一个支付宝的html页面**
 ![image-20251008183557242](assets/image-20251008183557242.png)
 
-==这个界面询问是否继续浏览器付款 随后将返回的表单写入页面会执行自动提交 然后跳转到支付宝的页面，后续操作基于支付宝==
+**这个界面询问是否继续浏览器付款 随后将返回的表单写入页面会执行自动提交 然后跳转到支付宝的页面，后续操作基于支付宝**
 
 ```html
 <!-- 商户生成的表单 -->
@@ -634,7 +782,7 @@ public class CreateOrderConsumer {
 
 支付成功后
 
-==主动查询方案==
+**主动查询方案**
 
 ```
 前端 paySuccess.vue (页面加载)
@@ -650,7 +798,7 @@ PayController.tradeCheck (支付服务) 更新pay_bill状态
 调用支付宝API查询实际支付状态
 ```
 
-==支付宝异步回调方案==
+**支付宝异步回调方案**
 
 ```
 支付宝服务器
@@ -668,7 +816,7 @@ PayController.notify (支付服务) 更新pay_bill状态
 
 ## 为何订单这个重要业务也能异步进行？
 
-创建订单过程是加锁执行的 因此如果不尽快处理就会导致阻塞很久 创建订单业务一般都要求采用同步是因为要返回给前端==订单号== 后续要==根据这个订单号进行支付操作== ==要保证订单在数据库存在== 
+创建订单过程是加锁执行的 因此如果不尽快处理就会导致阻塞很久 创建订单业务一般都要求采用同步是因为要返回给前端**订单号** 后续要根据这个订单号进行支付操作 **要保证订单在数据库存在** 
 
 **该业务进行了以下处理使得订单创建业务也可以异步进行**
 
@@ -680,7 +828,7 @@ PayController.notify (支付服务) 更新pay_bill状态
 
 ### Kafka异步消费订单
 
-创建订单是==异步==的，因此前端需要==轮询查看订单是否创建成功==(Redis)决定是否给用户显示支付界面,设置的是轮询5秒，因此kafka消费方如果接收到的是超过5s的消息则丢弃，回滚redis中的余票和座位状态
+创建订单是**异步**的，因此前端需要**轮询查看订单是否创建成功**(Redis)决定是否给用户显示支付界面,设置的是轮询5秒，因此kafka消费方如果接收到的是超过5s的消息则丢弃，回滚redis中的余票和座位状态
 
 - 消息超过5s丢弃并回滚余票和座位状态
 
@@ -695,7 +843,7 @@ PayController.notify (支付服务) 更新pay_bill状态
 
 ### 基因法
 
-基因法的userId%tablecount 是==根据表数量取模== 定位库时取这后几位基因定位 定位表时直接对表数量取模 由于表数量是2^n 所以基因位相同就可以保证定位到同一表 所以最终同一用户下订单能定位同一库表
+基因法的userId%tablecount 是**根据表数量取模** 定位库时取这后几位基因定位 定位表时直接对表数量取模 由于表数量是2^n 所以基因位相同就可以保证定位到同一表 所以最终同一用户下订单能定位同一库表
 
 - 基因生成 `userId % tableCount`
 
@@ -761,155 +909,10 @@ public Collection<String> doSharding(Collection<String> allActualSplitTableNames
 
 # 操作记录解决一致性问题
 
-### 1. Redis中新增记录表
-
-==在创建订单扣减库存的同时在Redis中新增一条记录==
-
-![image-20251025153858418](assets/image-20251025153858418.png)
-
-- 记录标识：通过id生成器生成的uid
-- 记录类型：分为扣减库存、恢复余票、座位状态修改
-- 记录数据拼接操作在lua中进行
-
-![image-20251106002049655](assets/image-20251106002049655.png)
-
-#### Hash结构
-
-![image-20251025154503130](assets/image-20251025154503130.png)
-
-- 大key(32)为节目id
-- Hash中key为记录类型-记录id-下单用户id
-
-------
-
-### 2. MySql中新增记录
-
-#### **1. 下单时，在发送Mq创建订单前插入一条记录**
-
-- 定时任务可以直接取这个表中存在的节目进行对账而不是全部取出来对比
-
-![image-20251228152031268](assets/image-20251228152031268.png)
-
-#### **2. 收到创建订单消息后直接同步节目服务数据库中余票**
-
-![image-20251228152044610](assets/image-20251228152044610.png)
-
-#### 3. 创建订单同时新增记录
-
-- 每个购票人记录中关联的是同一个记录id 
-
-![image-20251228152056863](assets/image-20251228152056863.png)
-
-![image-20251028020033661](assets/image-20251028020033661.png)
-
-![image-20251028020323227](assets/image-20251028020323227.png)
-
-#### 4. 在节目订单这张表加一个记录
-
-- 对账使用
-
-![image-20251228152111572](assets/image-20251228152111572.png)
-
-#### 5. 支付/退款回调成功会新增记录
-
-![image-20251228152122236](assets/image-20251228152122236.png)
-
-------
-
-### 3. 对比记录
-
-#### 3.1 查询要对账的节目
-
-==这里使用到前面发送kafka前插入的节目数据==
-
-![image-20251228152132921](assets/image-20251228152132921.png)
-
-- 定时任务定时对账
-- 通过rpc调用节目服务查找三分钟前的记录节目
-- 查前三分钟是为了防止节目服务发送kafka但是消息还未被消费的记录被读取
-
-![image-20251228152141379](assets/image-20251228152141379.png)
-
-#### 3.2 进行对账
-
-- 通过节目id查询Redis下的记录用来双向对账
-- 以Redis为标准对账
-  - 将Redis中的数据转为(IdentifyId_userId,recordType)键值对
-  - 根据这个dentifyId_userId查询数据库中订单人记录表并转为(recordType,value)键值对
-  - 遍历记录将Redis和Mysql中的记录进行对比
-    - 两个都没有数据--==无需对账 正常==
-    - Redis有而Mysql没有--Kafka消息丢失 
-    - Redis没有而Mysql有--Redis消息丢失
-    - 二者都有数据
-
-- 以Mysql为标准对账
-  - 根据节目id查询出购票人订单记录
-  - 进行对比
-
-
-==比对的是同一identifyId下操作记录是否相同==
-
-#### 3.3 数据不一致返回结果
-
-**Redis缺失记录为例**
-
-```json
-[
-    {
-        "examinationRecordTypeResultList": [
-            {
-                "examinationSeatResult": {
-                    "dbStandardStatisticCount": 0,
-                    "needToDbSeatRecordList": [
-
-                    ],
-                    "needToRedisSeatRecordList": [
-                        {
-                            "createTime": 1744890121000,
-                            "createType": 1,
-                            "editTime": 1745233944000,
-                            "id": 988036713682436098,
-                            "identifierId": 988037984992780288,
-                            "orderNumber": 1912833918217224202,
-                            "orderPrice": 380,
-                            "programId": 32,
-                            "reconciliationStatus": 1,
-                            "recordTypeCode": 0,
-                            "recordTypeValue": "changeStatus",
-                            "seatId": 752,
-                            "seatInfo": "1排2列",
-                            "status": 1,
-                            "ticketCategoryId": 34,
-                            "ticketUserId": 927653802827100032,
-                            "ticketUserOrderId": 988036713682436097,
-                            "userId": 927653802827104258
-                        }
-                    ],
-                    "redisStandardStatisticCount": 0
-                },
-                "recordTypeCode": 0,
-                "recordTypeValue": "changeStatus"
-            }
-        ],
-        "identifierId": "988037984992780288",
-        "userId": "927653802827104258"
-    }
-]
-```
-
-返回结果是同一订单下(全程使用的是同一记录id),缺失的记录(扣减、状态变更、订单取消)
-
-------
-
-## 缓存延迟双删
-
-缓存一致性问题发生在 第一次读取为空时在数据库读取并写入缓存 但是这时候发生网络问题写入缓存慢了 恰好这时候有mysql写入操作更新缓存 但由于这时候缓存为空加上之前读取到的是旧值导致网络恢复时写入Redis的也是旧值 这个问题可以通过延迟双删来解决
-
-https://www.bilibili.com/video/BV1EyXQYJEF5/?spm_id_from=333.1387.search.video_card.click&vd_source=fd0b7243ae5b04e4d46b23923b639f5b
-
-------
-
-## 总结
+- 扣减余票时Redis记录扣减记录 创建订单时Mysql记录扣减记录
+- 用户支付时同时在Redis和Mysql记录状态变更 从锁定中改为已售卖
+- 用户退款/订单取消同时在Redis和Mysql中记录为余票增加
+- 异常的记录比如消息超过5分钟丢弃、Mysql扣减库存失败写入Redis用于后台查看
 
 **1. redis扣减库存成功但是写入记录失败 ~~mysql扣减库存也成功了 但是创建订单和写入记录也失败了 就导致空扣了一票 怎么解决的~~**
 
@@ -919,24 +922,24 @@ https://www.bilibili.com/video/BV1EyXQYJEF5/?spm_id_from=333.1387.search.video_c
 
 **创建记录:** 
 
-> 1. 在下单的时候扣减完Redis余票,==更改完位置状态后会在Redis中新增==一条扣减余票的操作记录 记录包含了订单的信息以及扣减前后数量  
-> 2. 然后Kafka发送创建订单消息 创建订单前会==先将余票和座位信息同步到数据库== 创建订单后在Mysql中新增对应购票订单人的操作记录 
-> 3. 支付成功/退款 也会在==Redis和Mysql新增记录==
+> 1. 在下单的时候扣减完Redis余票,**更改完位置状态后会在Redis中新增**一条扣减余票的操作记录 记录包含了订单的信息以及扣减前后数量  
+> 2. 然后Kafka发送创建订单消息 创建订单前会**先将余票和座位信息同步到数据库** 创建订单后在Mysql中新增对应购票订单人的操作记录 
+> 3. 支付成功/退款 也会在**Redis和Mysql新增记录**
 
 **对账:**
 
-> 1. Redis Mysql都没数据: 有可能出现在Redis中余票扣成功了但是记录没写宕机同时主从也同步了这一数据 可能会导致Redis扣票了Mysql没扣但==没法感知导致少卖==
->    - 我的想法是==恰赶上Redis宕机时报错的话 然后删除Redis新主节点的缓存==重新在Mysql同步
+> 1. Redis Mysql都没数据: 有可能出现在Redis中余票扣成功了但是记录没写宕机同时主从也同步了这一数据 可能会导致Redis扣票了Mysql没扣但**没法感知导致少卖**
+>    - 我的想法是**恰赶上Redis宕机时报错的话 然后删除Redis新主节点的缓存**重新在Mysql同步
 >    - 如果哨兵已经切换节点了感知不到那只能少卖了 问题不大,售票结束对一下票数就好
-> 2. Redis中有记录而Mysql缺记录: 主要发生在==Kafka丢消息、消息延迟==、出现异常导致创建订单等场景 
->    - ==删除Redis余票和座位缓存== 重新从Mysql同步
+> 2. Redis中有记录而Mysql缺记录: 主要发生在**Kafka丢消息、消息延迟**、出现异常导致创建订单等场景 
+>    - **删除Redis余票和座位缓存** 重新从Mysql同步
 >    - 向mysql补数据很麻烦，因为有可能在马上要执行这个补的操作时候，Redis发生主节点宕机，从节点切换后这个数据丢失了，所以不要以一个不稳定的数据源作为依据，除非能容忍丢失 
 >    - 消息延迟的记录可以直接通过数据回滚进行恢复
 >    - Redis中扣减的那张票直接废弃就好 反正Mysql订单没创建成功 票也没少 用户在前端页面也不会跳到支付页面支付
-> 3. Mysql有记录而Redis缺记录:发生在==Redis的AOF/RDB未刷盘宕机、主从切换未同步导致数据丢失==
->    - 直接==补记录然后删除缓存==重新同步即可
+> 3. Mysql有记录而Redis缺记录:发生在**Redis的AOF/RDB未刷盘宕机、主从切换未同步导致数据丢失**
+>    - 直接**补记录然后删除缓存**重新同步即可
 
-==清除的是Redis下有异常的票档的座位和余票信息==
+**清除的是Redis下有异常的票档的座位和余票信息**
 
 1. 在Redis扣减库存成功后，Redis宕机了怎么办？
 
@@ -962,13 +965,35 @@ https://www.bilibili.com/video/BV1EyXQYJEF5/?spm_id_from=333.1387.search.video_c
 
 这样看起来补记录意义不太大?毕竟数据都同步完成了 是用来给管理员看的吗
 
-==总结起来就是对账记录的时候不一致则删除Redis中余票和座位信息缓存,以Mysql的数据为准重构缓存==
+**总结起来就是对账记录的时候不一致则删除Redis中余票和座位信息缓存,以Mysql的数据为准重构缓存**
 
 ------
 
 #  	 用户注册业务
 
-![img](assets/1723689547717-cf815238-633e-4fc9-afc5-d33b530aebbd.png)
+```mermaid
+graph TD
+    Start([用户注册操作]) --> Form[填写注册表单数据]
+    Form --> Click[点击注册按钮]
+    Click --> Check{需要验证码?}
+    
+    Check -- 是 --> Captcha[获取并填写验证码]
+    Captcha --> Exec[执行用户注册方法]
+    Check -- 否 --> Exec
+    
+    subgraph Chain_of_Responsibility [验证责任链]
+        Exec --> V1[验证码校验处理器]
+        V1 --> V2[请求参数频率校验器]
+        V2 --> V3[用户是否存在检查器]
+    end
+    
+    V3 --> Final[添加用户入库]
+
+    classDef chain fill:#e0f7fa,stroke:#00838f;
+    class Chain_of_Responsibility chain
+```
+
+
 
 **关键组件：**
 
@@ -1092,12 +1117,6 @@ public ResponseModel verification(CaptchaVO captchaVO) {
 
 ---
 # AI模块
-
-![Pasted image 20260211180440.png](assets/Pasted%20image%2020260211180440.png)
-
-
-
-
 
 ## ChatClient初使用
 
@@ -1246,8 +1265,6 @@ public class SimpleChatController {
 ### 日志
 
 > 请求 --> Advisor 前置处理 --> 模型调用 --> Advisor 后置处理 --> 返回响应
-
-![Pasted image 20260211223408](assets/Pasted%20image%2020260211223408.png)
 
 ```java
 @Bean

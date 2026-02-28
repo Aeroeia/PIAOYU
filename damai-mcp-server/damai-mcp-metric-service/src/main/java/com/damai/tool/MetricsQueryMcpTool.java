@@ -305,7 +305,7 @@ public class MetricsQueryMcpTool {
                     .sorted()
                     .toList();
             List<Map<String, Object>> healthList = new ArrayList<>();
-            
+
             for (String serviceName : services) {
                 Map<String, Object> serviceHealth = new LinkedHashMap<>();
                 serviceHealth.put("服务名", serviceName);
@@ -334,7 +334,6 @@ public class MetricsQueryMcpTool {
                 
                 healthList.add(serviceHealth);
             }
-
             Map<String, Object> result = new LinkedHashMap<>();
             result.put("服务数量", services.size());
             result.put("服务健康列表", healthList);
