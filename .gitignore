@@ -4,7 +4,25 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 logs/
+# macOS 系统文件
+.DS_Store
+.AppleDouble
+.LSOverride
 
+# Thumbnails
+._*
+
+# 文件元数据（如资源叉）
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# 直接忽略项目根目录下的所有 .DS_Store
+**/.DS_Store
 ### Agent ###
 cookasyncagent/
 **/dependency-reduced-pom.xml

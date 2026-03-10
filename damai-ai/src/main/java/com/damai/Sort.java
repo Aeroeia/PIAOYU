@@ -2,16 +2,31 @@ package com.damai;
 
 import lombok.SneakyThrows;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
 import java.util.Arrays;
+import java.util.StringTokenizer;
 
 //快速排序，归并排序
 public class Sort {
-    public static void main(String[] args) {
-        int[] arr = {0,4,2,6,3,7,1,9,5};
-        int[] sorted = {1,2,3,4,6,6,7,8,9,10};
-        quickSort(arr,0,arr.length-1);
-        System.out.println(Arrays.toString(arr));
-        threadPrint();
+    public static void main(String[] args) throws IOException {
+//        int[] arr = {0,4,2,6,3,7,1,9,5};
+//        int[] sorted = {1,2,3,4,6,6,7,8,9,10};
+//        quickSort(arr,0,arr.length-1);
+//        System.out.println(Arrays.toString(arr));
+//        threadPrint();
+        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+        PrintWriter pr = new PrintWriter(System.out);
+        int n = Integer.parseInt(br.readLine());
+        String str;
+        while(!(str = br.readLine()).isBlank()){
+            StringTokenizer st = new StringTokenizer(str);
+            pr.println(st.nextToken());
+        }
+        pr.flush();
+        br.close();
     }
     static int cnt = 0;
     public static void threadPrint(){
