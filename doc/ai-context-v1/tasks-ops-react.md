@@ -3,6 +3,8 @@
 ## 目标
 - 在现有聊天入口内提供“查询诊断型 ReAct”能力，支持日志/指标排障闭环。
 - 保持高危动作门禁策略：只给人工建议，不自动执行变更操作。
+- Program 通道强边界：运维意图仅走 `/program/chat/mcp`，规则文档意图命中时提示切换 `/program/rag`。
+- 本轮不改 `simple` 系列接口行为。
 
 ## 任务清单
 - [x] 1. 定义 ReAct 输出协议：`Thought / Action / Observation / Conclusion / Next`
@@ -12,7 +14,8 @@
 - [x] 5. 实现降级策略：工具/模型异常时返回人工排查建议
 - [x] 6. 接入主编排器：`OPS` 场景进入 ReAct 服务
 - [x] 7. 保持边界：本轮仅查询诊断，不新增自动执行型 MCP 工具
-- [ ] 8. Maven 环境编译与故障演练回归（当前环境无 `mvn/mvnw`）
+- [x] 8. Program 专口重定向：错误通道请求返回“请访问对应接口”
+- [ ] 9. Maven 环境编译与故障演练回归（当前环境无 `mvn/mvnw`）
 
 ## 交付物
 - `OpsReactService`（查询诊断型 ReAct）
@@ -33,3 +36,17 @@
   - 风险：ReAct 轮次输出依赖模型结构化遵循度
   - 回滚：可将 `OPS` 场景临时回退到 `GENERAL` 主问答链路
 - 下一轮: 在有 Maven 环境执行运维排障案例回归（日志+指标组合）
+
+### Round 2
+- 目标: 收敛 Program 运维专口行为，避免规则类问题误走 ReAct
+- 代码改动:
+  - 意图路由新增 `channelIntent`，用于识别 RAG/OPS 专用通道
+  - 编排器在 `chatType=ANALYSIS` 下命中 RAG 意图时直接引导 `/program/rag`
+  - `/program/chat` 和 `/program/rag` 命中 OPS 意图时引导 `/program/chat/mcp`
+- 接口变更: 无（仅调整 Program 路由分流行为）
+- 数据变更: 无
+- 验证结果: 静态检查完成；当前环境无 Maven，未执行编译和自动化测试
+- 风险与回滚点:
+  - 风险：关键词边界导致个别重定向误判
+  - 回滚：可回退到旧的 scene 路由策略
+- 下一轮: 增加通道重定向样例回归并校准关键词集

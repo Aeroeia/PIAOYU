@@ -11,4 +11,10 @@ public class AiIntentResult {
     private AiIntentType intent;
     private Double confidence;
     private String reason;
+    private AiChannelIntent channelIntent;
+    private Double channelConfidence;
+    private String channelReason;
+    private Boolean orderIntent;
+    private Double orderConfidence;
+    private String orderReason;
 }
