@@ -46,3 +46,22 @@ CREATE TABLE IF NOT EXISTS `ai_user_profile` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_ai_user_profile_user_key` (`user_id`,`attr_key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='AI用户画像表（低风险骨架）';
+
+CREATE TABLE IF NOT EXISTS `ai_order_execution_state` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `chat_type` int NOT NULL COMMENT '会话类型，见ChatType',
+  `chat_id` varchar(128) NOT NULL COMMENT '会话ID',
+  `user_id` bigint DEFAULT NULL COMMENT '用户ID，可空兼容',
+  `state` varchar(32) NOT NULL COMMENT '执行状态：INIT/CHECK/LOCK/PAY/CONFIRM/DONE/FAILED/WAITING_USER_INPUT',
+  `plan_json` text COMMENT '执行计划与阶段结果',
+  `slots_json` text COMMENT '已抽取的下单参数',
+  `current_step` varchar(32) DEFAULT NULL COMMENT '当前执行步骤',
+  `retry_count` int DEFAULT 0 COMMENT '重试次数',
+  `idempotency_key` varchar(128) DEFAULT NULL COMMENT '幂等键',
+  `create_time` datetime DEFAULT NULL,
+  `edit_time` datetime DEFAULT NULL,
+  `status` tinyint(1) DEFAULT 1,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_ai_order_state_type_chat` (`chat_type`,`chat_id`),
+  KEY `idx_ai_order_state_user` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='AI下单执行状态表';

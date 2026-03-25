@@ -1,26 +1,38 @@
 # 下单场景任务清单（Plan-Execute）
 
 ## 目标
-- 让 AI 在下单场景按“先规划、再执行”的方式稳定完成业务闭环。
-- 失败时可中断并向用户索要缺失信息，补全后继续执行。
+- 在现有 `/program/chat` 编排链路内落地下单状态机，支持缺参补全与续跑。
+- 复用现有业务能力完成下单，增加幂等控制与支付前确认门。
 
 ## 任务清单
-- [ ] 1. 定义下单流程状态机：`INIT -> CHECK -> LOCK -> PAY -> CONFIRM -> DONE/FAILED`
-- [ ] 2. 定义 Plan 协议：输出步骤列表、每步入参、失败补偿动作
-- [ ] 3. 实现参数收集器：识别缺失字段（商品、数量、地址、支付方式等）
-- [ ] 4. 实现执行器：按计划顺序调用库存、优惠、订单、支付接口
-- [ ] 5. 实现失败续跑：失败后返回补全提示，补全后从失败步继续
-- [ ] 6. 增加幂等控制：避免重复扣款和重复下单
-- [ ] 7. 增加高风险确认：支付前二次确认或风控校验
-- [ ] 8. 打通结果回传：输出订单号、金额、状态和下一步建议
-- [ ] 9. 补齐测试：成功下单、缺参补全、库存不足、支付失败重试、防重复提交
+- [x] 1. 新增下单状态表：`ai_order_execution_state`
+- [x] 2. 新增状态持久化服务：`AiOrderExecutionStateService`
+- [x] 3. 实现状态机：`INIT -> CHECK -> LOCK -> PAY -> CONFIRM -> DONE/FAILED/WAITING_USER_INPUT`
+- [x] 4. 实现 `plan()/execute()/resume()` 三段式编排
+- [x] 5. 实现槽位提取（小模型抽取 + 规则兜底）与缺参返回
+- [x] 6. 实现续跑机制：用户补全后从中断步骤继续执行
+- [x] 7. 实现幂等键生成与持久化：`idempotency_key`
+- [x] 8. 实现支付前确认门：未确认停在 `WAITING_USER_INPUT`
+- [x] 9. 与主编排器接线：`ORDER` 场景进入下单服务，结果回写会话状态
+- [ ] 10. Maven 环境编译与联调回归（当前环境无 `mvn/mvnw`）
 
 ## 交付物
-- 下单编排服务（Plan + Execute）
-- 失败补全与续跑机制
-- 场景化测试用例与联调记录
+- `OrderPlanExecuteService`（Plan-Execute 主服务）
+- `AiOrderExecutionState` 实体与 Mapper/Service
+- `ai_context_v1.sql` 下单状态表 DDL
 
-## 验收标准
-- 用户在 1 次对话内可触发下单流程并拿到明确结果。
-- 参数缺失时系统能给出明确补全项，不会直接报错中断。
-- 重复请求不产生重复订单或重复支付。
+## 每轮改动日志
+### Round 1
+- 目标: 落地下单 Plan-Execute 状态机与续跑存储
+- 代码改动:
+  - 新增 `AiOrderExecutionState`、`AiOrderExecutionStateMapper`、`AiOrderExecutionStateService`
+  - 新增 `OrderSlots`、`AiOrderExecutionStatus`
+  - 新增 `OrderPlanExecuteService`（缺参补全、状态推进、确认门、幂等键）
+  - 编排器接入 `ORDER` 场景分支并回写会话状态
+- 接口变更: 无（继续复用 `/program/chat` 等入口）
+- 数据变更: 新增表 `ai_order_execution_state`
+- 验证结果: 代码静态检查完成；当前环境无 Maven，未执行编译和自动化测试
+- 风险与回滚点:
+  - 风险：状态机流程依赖外部下单接口可用性
+  - 回滚：可在 `AiConversationOrchestratorService` 将 `ORDER` 分支回退到 `GENERAL` 链路
+- 下一轮: 在 Maven 环境执行编译与下单场景联调用例

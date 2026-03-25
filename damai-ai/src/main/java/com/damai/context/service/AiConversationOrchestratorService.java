@@ -2,6 +2,8 @@ package com.damai.context.service;
 
 import com.damai.context.model.AiIntentResult;
 import com.damai.context.model.AiIntentType;
+import com.damai.context.model.AiSceneResult;
+import com.damai.context.model.AiSceneType;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.memory.ChatMemory;
@@ -20,17 +22,26 @@ import java.util.UUID;
 public class AiConversationOrchestratorService {
 
     private final IntentRouterService intentRouterService;
+    private final SceneRouterService sceneRouterService;
     private final CommandOperationService commandOperationService;
     private final PromptOrchestrationService promptOrchestrationService;
+    private final OrderPlanExecuteService orderPlanExecuteService;
+    private final OpsReactService opsReactService;
     private final ConversationStateService conversationStateService;
 
     public AiConversationOrchestratorService(IntentRouterService intentRouterService,
+                                             SceneRouterService sceneRouterService,
                                              CommandOperationService commandOperationService,
                                              PromptOrchestrationService promptOrchestrationService,
+                                             OrderPlanExecuteService orderPlanExecuteService,
+                                             OpsReactService opsReactService,
                                              ConversationStateService conversationStateService) {
         this.intentRouterService = intentRouterService;
+        this.sceneRouterService = sceneRouterService;
         this.commandOperationService = commandOperationService;
         this.promptOrchestrationService = promptOrchestrationService;
+        this.orderPlanExecuteService = orderPlanExecuteService;
+        this.opsReactService = opsReactService;
         this.conversationStateService = conversationStateService;
     }
 
@@ -53,9 +64,37 @@ public class AiConversationOrchestratorService {
             return Flux.just(response);
         }
 
+        AiSceneResult sceneResult = sceneRouterService.route(prompt, chatType, intent);
+        AiSceneType scene = sceneResult.getScene();
+        log.info("scene route chatType={} chatId={} intent={} scene={} confidence={} reason={}",
+                chatType, safeChatId, intent, scene, sceneResult.getConfidence(), sceneResult.getReason());
+
         String systemContext = promptOrchestrationService.buildSystemContext(
                 chatType, safeChatId, userId, prompt, intent, enableKnowledgeRag
         );
+
+        // ORDER/OPS 走专用编排服务，但仍复用同一套上下文与状态回写链路。
+        if (scene == AiSceneType.ORDER) {
+            try {
+                String response = orderPlanExecuteService.handle(chatType, safeChatId, userId, prompt, systemContext);
+                conversationStateService.onChatCompleted(chatType, safeChatId, userId, prompt, response, intent);
+                return Flux.just(response);
+            } catch (Exception e) {
+                conversationStateService.onChatError(chatType, safeChatId, userId, prompt, intent, e.getMessage());
+                return Flux.just("下单流程执行失败：" + e.getMessage());
+            }
+        }
+
+        if (scene == AiSceneType.OPS) {
+            try {
+                String response = opsReactService.runReactCycle(chatClient, prompt, systemContext, extraToolCallbacks);
+                conversationStateService.onChatCompleted(chatType, safeChatId, userId, prompt, response, intent);
+                return Flux.just(response);
+            } catch (Exception e) {
+                conversationStateService.onChatError(chatType, safeChatId, userId, prompt, intent, e.getMessage());
+                return Flux.just("运维诊断链路暂时不可用，请稍后重试。");
+            }
+        }
 
         var requestSpec = chatClient.prompt()
                 .system(systemContext)
