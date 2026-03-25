@@ -42,11 +42,23 @@ function buildUrl(path, params = {}) {
   return url
 }
 
+function resolveUserId() {
+  try {
+    const userId = window.localStorage.getItem('userId')
+    if (userId === null || userId === undefined || userId === '') {
+      return undefined
+    }
+    return userId
+  } catch (e) {
+    return undefined
+  }
+}
+
 export const chatAPI = {
   // 发送聊天消息
   async simpleChat(data, chatId) {
     try {
-      const url = buildUrl('/simple/chat', { chatId })
+      const url = buildUrl('/simple/chat', { chatId, userId: resolveUserId() })
       const response = await fetchWithTimeout(url, {
         method: 'POST',
         body: data instanceof FormData ? data : new URLSearchParams({ prompt: data })
@@ -95,7 +107,7 @@ export const chatAPI = {
   // 发送助手消息
   async sendAssistantMessage(prompt, chatId) {
     try {
-      const url = buildUrl('/program/chat', { prompt, chatId })
+      const url = buildUrl('/program/chat', { prompt, chatId, userId: resolveUserId() })
       const response = await fetchWithTimeout(url)
       return response.body.getReader()
     } catch (error) {
@@ -107,7 +119,7 @@ export const chatAPI = {
   // 发送rag消息
   async sendRagMessage(prompt, chatId) {
     try {
-      const url = buildUrl('/program/rag', { prompt, chatId })
+      const url = buildUrl('/program/rag', { prompt, chatId, userId: resolveUserId() })
       const response = await fetchWithTimeout(url)
       return response.body.getReader()
     } catch (error) {
@@ -119,7 +131,7 @@ export const chatAPI = {
   // 发送运维分析消息（MCP日志查询）
   async sendAnalysisMessage(prompt, chatId) {
     try {
-      const url = buildUrl('/program/chat/mcp', { prompt, chatId })
+      const url = buildUrl('/program/chat/mcp', { prompt, chatId, userId: resolveUserId() })
       const response = await fetchWithTimeout(url)
       return response.body.getReader()
     } catch (error) {

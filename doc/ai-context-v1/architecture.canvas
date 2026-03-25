@@ -1,0 +1,38 @@
+{
+	"nodes":[
+		{"id":"orchestrator","type":"text","text":"**Conversation Orchestrator**\n`核心编排`\n\n意图路由 + 分支调度 + 流式响应","x":320,"y":5,"width":320,"height":160,"color":"1"},
+		{"id":"command_handler","type":"text","text":"**Command Handler**\n\n处理清空/重置类命令\n命令分支不走检索与主问答","x":-50,"y":300,"width":280,"height":150,"color":"5"},
+		{"id":"context_assembler","type":"text","text":"**Context Assembler**\n\n整合 Short + Mid + Long\n生成上下文块","x":700,"y":40,"width":300,"height":160,"color":"5"},
+		{"id":"big_prompt","type":"text","text":"**Big Prompt Builder**\n\nFACT: 摘要+最近10+长时片段+问题\nCONTINUE: 摘要+最近10+少量长时片段+问题","x":1180,"y":-85,"width":340,"height":180,"color":"3"},
+		{"id":"vector_store","type":"text","text":"**Vector Store**\n\n文档知识片段 + 聊天片段\n(metadata: userId/chatId/type 过滤)","x":1670,"y":260,"width":320,"height":170,"color":"3"},
+		{"id":"state_manager","type":"text","text":"**State Manager**\n\n写回窗口消息\n维护会话计数与摘要状态","x":1180,"y":980,"width":320,"height":160,"color":"1"},
+		{"id":"summary_compressor","type":"text","text":"**Summary Compressor**\n\n触发条件: 累计到 20 条\n压缩最老 10 条 -> 合并摘要\n窗口保留最新 10 条","x":630,"y":920,"width":320,"height":180,"color":"5"},
+		{"id":"redis_window","type":"text","text":"**Redis Window**\n`ai:session:window:{type}:{chatId}`\n\nShort-term 固定读取最近 10 条","x":630,"y":530,"width":310,"height":170,"color":"6"},
+		{"id":"session_db","type":"text","text":"**MySQL ai_chat_session**\n\n`current_summary`\n`raw_message_count / last_compacted_seq`","x":1120,"y":360,"width":320,"height":170,"color":"6"},
+		{"id":"intent_router","type":"text","text":"**Intent Router**\n`FACT / CONTINUE / COMMAND`\n\n小模型分类 + 规则降级","x":180,"y":740,"width":280,"height":150,"color":"4"},
+		{"id":"chat_model","type":"text","text":"**Main Chat Model**\nassistant / markdown / analysis / simple\n\n流式返回给前端","x":1830,"y":-75,"width":320,"height":170,"color":"3"},
+		{"id":"entry_api","type":"text","text":"**AI Controller**\n`Entry Layer`\n\n接收 `prompt/chatId/userId(optional)/chatType`","x":-190,"y":-110,"width":280,"height":150,"color":"2"},
+		{"id":"async_workers","type":"text","text":"**Async Workers**\n\n向量入库任务\n画像抽取任务（低风险）","x":1850,"y":500,"width":300,"height":150,"color":"4"},
+		{"id":"profile_db","type":"text","text":"**MySQL ai_user_profile**\n\n仅低风险画像骨架\n(城市/偏好)","x":1670,"y":850,"width":300,"height":130,"color":"6"}
+	],
+	"edges":[
+		{"id":"e1","fromNode":"entry_api","fromSide":"right","toNode":"orchestrator","toSide":"left","color":"5","label":"请求进入"},
+		{"id":"e2","fromNode":"orchestrator","fromSide":"bottom","toNode":"intent_router","toSide":"top","color":"4","label":"意图识别"},
+		{"id":"e3","fromNode":"intent_router","fromSide":"left","toNode":"command_handler","toSide":"right","color":"5","label":"COMMAND 分支"},
+		{"id":"e4","fromNode":"intent_router","fromSide":"right","toNode":"context_assembler","toSide":"left","color":"3","label":"FACT/CONTINUE 分支"},
+		{"id":"e5","fromNode":"context_assembler","fromSide":"bottom","toNode":"redis_window","toSide":"top","color":"2","label":"Short-term recent 10"},
+		{"id":"e6","fromNode":"context_assembler","fromSide":"bottom","toNode":"session_db","toSide":"top","color":"2","label":"Mid-term summary"},
+		{"id":"e7","fromNode":"context_assembler","fromSide":"right","toNode":"vector_store","toSide":"left","color":"3","label":"Long-term retrieve"},
+		{"id":"e8","fromNode":"context_assembler","fromSide":"right","toNode":"big_prompt","toSide":"left","color":"5","label":"上下文块"},
+		{"id":"e9","fromNode":"big_prompt","fromSide":"right","toNode":"chat_model","toSide":"left","color":"1","label":"模型调用"},
+		{"id":"e10","fromNode":"chat_model","fromSide":"bottom","toNode":"state_manager","toSide":"top","color":"1","label":"onComplete"},
+		{"id":"e11","fromNode":"state_manager","fromSide":"left","toNode":"redis_window","toSide":"right","color":"2","label":"窗口追加消息"},
+		{"id":"e12","fromNode":"state_manager","fromSide":"top","toNode":"session_db","toSide":"bottom","color":"6","label":"更新会话状态"},
+		{"id":"e13","fromNode":"state_manager","fromSide":"left","toNode":"summary_compressor","toSide":"right","color":"5","label":"触发压缩检查"},
+		{"id":"e14","fromNode":"summary_compressor","fromSide":"top","toNode":"session_db","toSide":"bottom","color":"5","label":"回写摘要"},
+		{"id":"e15","fromNode":"summary_compressor","fromSide":"top","toNode":"redis_window","toSide":"bottom","color":"2","label":"保留最新10"},
+		{"id":"e16","fromNode":"state_manager","fromSide":"right","toNode":"async_workers","toSide":"left","color":"4","label":"异步任务"},
+		{"id":"e17","fromNode":"async_workers","fromSide":"top","toNode":"vector_store","toSide":"bottom","color":"3","label":"向量入库"},
+		{"id":"e18","fromNode":"async_workers","fromSide":"bottom","toNode":"profile_db","toSide":"top","color":"6","label":"画像提取"}
+	]
+}

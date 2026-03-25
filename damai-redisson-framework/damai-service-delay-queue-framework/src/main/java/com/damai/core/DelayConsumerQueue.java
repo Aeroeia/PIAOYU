@@ -2,6 +2,7 @@ package com.damai.core;
 
 import com.damai.context.DelayQueuePart;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.StringRedisTemplate;
 
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
@@ -25,6 +26,8 @@ public class DelayConsumerQueue extends DelayBaseQueue{
     private final AtomicBoolean runFlag = new AtomicBoolean(false);
     
     private final ConsumerTask consumerTask;
+
+    private StringRedisTemplate redisTemplate;
     
     public DelayConsumerQueue(DelayQueuePart delayQueuePart, String relTopic){
         super(delayQueuePart.getDelayQueueBasePart().getRedissonClient(),relTopic);
