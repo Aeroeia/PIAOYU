@@ -17,4 +17,7 @@ public class AiIntentResult {
     private Boolean orderIntent;
     private Double orderConfidence;
     private String orderReason;
+    private Boolean ticketIntent;
+    private Double ticketConfidence;
+    private String ticketReason;
 }

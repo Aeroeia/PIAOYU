@@ -38,13 +38,16 @@ public class IntentRouterService {
                     你是意图路由器。请将用户输入分类并只返回 JSON。
                     1. intent: FACT/CONTINUE/COMMAND
                     2. channelIntent: RAG/OPS/NONE
-                    3. orderIntent: true/false（是否购票/下单）
+                    3. orderIntent: true/false（是否明确要下单）
+                    4. ticketIntent: true/false（是否查询票务信息但不下单）
                     说明：
                     1. FACT: 事实咨询、知识问答、文档查询
                     2. CONTINUE: 连续上下文追问（例如：刚才那个、继续上一个）
                     3. COMMAND: 指令执行（例如：清空会话、查看摘要、清空摘要）
                     4. channelIntent=RAG: 项目规则、文档、知识库查询
                     5. channelIntent=OPS: 日志、监控、链路排障
+                    6. orderIntent=true 的语句示例：帮我下单/确认购买/支付订单
+                    7. ticketIntent=true 的语句示例：查票/看票价/还有余票吗/演出场次
                     只返回JSON，格式：
                     {
                       "intent":"FACT|CONTINUE|COMMAND",
@@ -55,7 +58,10 @@ public class IntentRouterService {
                       "channelReason":"...",
                       "orderIntent":true,
                       "orderConfidence":0.0,
-                      "orderReason":"..."
+                      "orderReason":"...",
+                      "ticketIntent":false,
+                      "ticketConfidence":0.0,
+                      "ticketReason":"..."
                     }
                     用户输入：%s
                     """.formatted(prompt);
@@ -78,6 +84,9 @@ public class IntentRouterService {
             Boolean modelOrderIntent = jsonObject.getBoolean("orderIntent");
             Double modelOrderConfidence = jsonObject.getDouble("orderConfidence");
             String modelOrderReason = jsonObject.getString("orderReason");
+            Boolean modelTicketIntent = jsonObject.getBoolean("ticketIntent");
+            Double modelTicketConfidence = jsonObject.getDouble("ticketConfidence");
+            String modelTicketReason = jsonObject.getString("ticketReason");
 
             AiIntentResult result = baseResult(intent, confidence == null ? 0.6D : confidence, reason);
             if (ruleResult.getChannelIntent() != null && ruleResult.getChannelIntent() != AiChannelIntent.NONE) {
@@ -99,6 +108,21 @@ public class IntentRouterService {
                 result.setOrderConfidence(modelOrderConfidence == null ? 0.50D : modelOrderConfidence);
                 result.setOrderReason(modelOrderReason);
             }
+
+            boolean finalOrderIntent = Boolean.TRUE.equals(result.getOrderIntent());
+            if (finalOrderIntent) {
+                result.setTicketIntent(false);
+                result.setTicketConfidence(0.0D);
+                result.setTicketReason("命中下单意图，下单优先");
+            } else if (Boolean.TRUE.equals(ruleResult.getTicketIntent())) {
+                result.setTicketIntent(true);
+                result.setTicketConfidence(ruleResult.getTicketConfidence());
+                result.setTicketReason(ruleResult.getTicketReason());
+            } else {
+                result.setTicketIntent(Boolean.TRUE.equals(modelTicketIntent));
+                result.setTicketConfidence(modelTicketConfidence == null ? 0.50D : modelTicketConfidence);
+                result.setTicketReason(modelTicketReason);
+            }
             return result;
         } catch (Exception e) {
             // 小模型不可用时不影响功能，回退到规则判定。
@@ -118,14 +142,18 @@ public class IntentRouterService {
             commandResult.setOrderIntent(false);
             commandResult.setOrderConfidence(0.0D);
             commandResult.setOrderReason("COMMAND 不参与下单");
+            commandResult.setTicketIntent(false);
+            commandResult.setTicketConfidence(0.0D);
+            commandResult.setTicketReason("COMMAND 不参与查票");
             return commandResult;
         }
 
         AiIntentType intentType = containsAny(text, "刚才", "上一个", "那个代码", "继续", "接着", "as above", "continue")
                 ? AiIntentType.CONTINUE : AiIntentType.FACT;
 
-        AiChannelIntent channelIntent = detectChannelByRule(text);
-        boolean orderIntent = containsAny(text, "下单", "买票", "购票", "付款", "支付", "创建订单", "票档", "购票人", "身份证", "手机号");
+        boolean orderIntent = detectOrderByRule(text);
+        boolean ticketIntent = !orderIntent && detectTicketByRule(text);
+        AiChannelIntent channelIntent = detectChannelByRule(text, ticketIntent);
 
         AiIntentResult result = baseResult(intentType,
                 intentType == AiIntentType.CONTINUE ? 0.85D : 0.70D,
@@ -136,6 +164,9 @@ public class IntentRouterService {
         result.setOrderIntent(orderIntent);
         result.setOrderConfidence(orderIntent ? 0.90D : 0.0D);
         result.setOrderReason(orderIntent ? "命中购票关键词" : "未命中购票关键词");
+        result.setTicketIntent(ticketIntent);
+        result.setTicketConfidence(ticketIntent ? 0.88D : 0.0D);
+        result.setTicketReason(ticketIntent ? "命中查票关键词" : "未命中查票关键词");
         return result;
     }
 
@@ -150,18 +181,36 @@ public class IntentRouterService {
         result.setOrderIntent(false);
         result.setOrderConfidence(0.0D);
         result.setOrderReason("默认无购票意图");
+        result.setTicketIntent(false);
+        result.setTicketConfidence(0.0D);
+        result.setTicketReason("默认无查票意图");
         return result;
     }
 
-    private AiChannelIntent detectChannelByRule(String text) {
+    private AiChannelIntent detectChannelByRule(String text, boolean ticketIntent) {
         // OPS 优先级高于 RAG，避免“项目规则 + 错误日志”混合语句被误导向文档入口。
         if (containsAny(text, "日志", "trace", "traceid", "链路", "告警", "监控", "cpu", "gc", "内存", "线程", "错误率", "qps", "prometheus")) {
             return AiChannelIntent.OPS;
+        }
+        if (ticketIntent) {
+            return AiChannelIntent.RAG;
         }
         if (containsAny(text, "规则", "文档", "知识库", "项目说明", "需求文档", "架构说明", "项目约束", "业务规则")) {
             return AiChannelIntent.RAG;
         }
         return AiChannelIntent.NONE;
+    }
+
+    private boolean detectOrderByRule(String text) {
+        return containsAny(text,
+                "确认下单", "立即下单", "帮我下单", "创建订单", "确认购买", "我要买", "我要购买",
+                "马上支付", "去支付", "付款", "支付订单", "买这张票", "帮我订票");
+    }
+
+    private boolean detectTicketByRule(String text) {
+        return containsAny(text,
+                "查票", "看票", "余票", "还有票吗", "票价", "多少钱", "演出时间", "场次", "开票",
+                "票档", "选座", "座位图", "门票信息", "演唱会信息");
     }
 
     private AiChannelIntent parseChannelIntent(String text, AiChannelIntent fallback) {
