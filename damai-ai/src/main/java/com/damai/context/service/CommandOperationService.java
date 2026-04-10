@@ -15,6 +15,8 @@ import java.util.Locale;
 @Service
 public class CommandOperationService {
     private static final int VIEW_SUMMARY_CHUNK_LIMIT = 3;
+    private static final String CONFIRM_CLEAR_SESSION_PHRASE = "确认清空会话";
+    private static final String CONFIRM_CLEAR_SUMMARY_PHRASE = "确认清空摘要";
 
     private final ChatMemory chatMemory;
     private final RedisWindowService redisWindowService;
@@ -37,12 +39,18 @@ public class CommandOperationService {
         }
 
         if (isResetSummaryCommand(prompt)) {
+            if (!isStrongResetSummaryConfirm(prompt)) {
+                return "检测到你希望清空摘要。为避免误操作，请回复“" + CONFIRM_CLEAR_SUMMARY_PHRASE + "”后我再执行。";
+            }
             aiChatSessionService.clearSummaryOnly(chatType, chatId, userId);
             aiChatSummaryChunkService.clearChunks(chatType, chatId);
             return "已为你清空当前会话摘要。";
         }
 
         if (isClearSessionCommand(prompt)) {
+            if (!isStrongClearSessionConfirm(prompt)) {
+                return "检测到你希望清空会话。为避免误操作，请回复“" + CONFIRM_CLEAR_SESSION_PHRASE + "”后我再执行。";
+            }
             chatMemory.clear(chatId);
             redisWindowService.clear(chatType, chatId);
             aiChatSessionService.clearSession(chatType, chatId, userId);
@@ -90,12 +98,16 @@ public class CommandOperationService {
 
     private boolean isClearSessionCommand(String prompt) {
         String text = prompt == null ? "" : prompt.toLowerCase(Locale.ROOT);
-        return text.contains("清空")
-                || text.contains("删除记录")
+        return text.contains("清空会话")
+                || text.contains("清空聊天记录")
+                || text.contains("删除会话")
+                || text.contains("删除聊天记录")
+                || text.contains("重置会话")
                 || text.contains("重置对话")
-                || text.contains("清除历史")
+                || text.contains("清除历史记录")
                 || text.contains("clear history")
-                || text.contains("reset");
+                || text.contains("reset chat")
+                || text.contains("reset conversation");
     }
 
     private boolean isViewSummaryCommand(String prompt) {
@@ -111,7 +123,26 @@ public class CommandOperationService {
         return text.contains("清空摘要")
                 || text.contains("重置摘要")
                 || text.contains("清除摘要")
+                || text.contains("删除摘要")
                 || text.contains("reset summary")
                 || text.contains("clear summary");
+    }
+
+    private boolean isStrongClearSessionConfirm(String prompt) {
+        String text = prompt == null ? "" : prompt.toLowerCase(Locale.ROOT);
+        return text.contains(CONFIRM_CLEAR_SESSION_PHRASE)
+                || text.contains("确定清空会话")
+                || text.contains("立即清空会话")
+                || text.contains("confirm clear session")
+                || text.contains("confirm clear history");
+    }
+
+    private boolean isStrongResetSummaryConfirm(String prompt) {
+        String text = prompt == null ? "" : prompt.toLowerCase(Locale.ROOT);
+        return text.contains(CONFIRM_CLEAR_SUMMARY_PHRASE)
+                || text.contains("确定清空摘要")
+                || text.contains("立即清空摘要")
+                || text.contains("confirm clear summary")
+                || text.contains("confirm reset summary");
     }
 }

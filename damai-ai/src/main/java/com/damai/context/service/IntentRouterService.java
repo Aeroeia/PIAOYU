@@ -19,6 +19,30 @@ import java.util.Locale;
 @Service
 @Slf4j
 public class IntentRouterService {
+    private static final double COMMAND_MODEL_CONFIDENCE_GATE = 0.80D;
+    private static final double PRIMARY_ROUTE_CONFIDENCE_GATE = 0.80D;
+    private static final double SECONDARY_ROUTE_CONFIDENCE_GATE = 0.80D;
+    private static final double ROUTE_MARGIN_GATE = 0.15D;
+
+    private static final String[] VIEW_SUMMARY_COMMAND_KEYS = {
+            "查看摘要", "看摘要", "展示摘要", "show summary", "view summary"
+    };
+    private static final String[] RESET_SUMMARY_COMMAND_KEYS = {
+            "清空摘要", "重置摘要", "清除摘要", "删除摘要", "clear summary", "reset summary"
+    };
+    private static final String[] CLEAR_SESSION_COMMAND_KEYS = {
+            "清空会话", "清除会话", "删除会话", "重置会话", "重置对话", "清空聊天记录", "删除聊天记录",
+            "清除历史记录", "clear history", "reset chat", "reset conversation"
+    };
+
+    private static final String[] COMMAND_KNOWLEDGE_QUERY_KEYS = {
+            "怎么", "如何", "什么意思", "是什么", "为什么", "为何", "影响", "后果", "举例", "例如", "比如",
+            "怎么用", "如何用", "会怎样", "会发生什么", "什么时候", "何时", "规则", "原理", "场景", "区别"
+    };
+
+    private static final String[] COMMAND_NEGATION_KEYS = {
+            "不要", "别", "不用", "不需要", "无需", "不是让你", "先别", "暂停执行", "don't", "do not"
+    };
 
     private final ChatClient tinyIntentChatClient;
 
@@ -34,96 +58,18 @@ public class IntentRouterService {
         }
 
         try {
-            String request = """
-                    你是意图路由器。请将用户输入分类并只返回 JSON。
-                    1. intent: FACT/CONTINUE/COMMAND
-                    2. channelIntent: RAG/OPS/NONE
-                    3. orderIntent: true/false（是否明确要下单）
-                    4. ticketIntent: true/false（是否查询票务信息但不下单）
-                    说明：
-                    1. FACT: 事实咨询、知识问答、文档查询
-                    2. CONTINUE: 连续上下文追问（例如：刚才那个、继续上一个）
-                    3. COMMAND: 指令执行（例如：清空会话、查看摘要、清空摘要）
-                    4. channelIntent=RAG: 项目规则、文档、知识库查询
-                    5. channelIntent=OPS: 日志、监控、链路排障
-                    6. orderIntent=true 的语句示例：帮我下单/确认购买/支付订单
-                    7. ticketIntent=true 的语句示例：查票/看票价/还有余票吗/演出场次
-                    只返回JSON，格式：
-                    {
-                      "intent":"FACT|CONTINUE|COMMAND",
-                      "confidence":0.0,
-                      "reason":"...",
-                      "channelIntent":"RAG|OPS|NONE",
-                      "channelConfidence":0.0,
-                      "channelReason":"...",
-                      "orderIntent":true,
-                      "orderConfidence":0.0,
-                      "orderReason":"...",
-                      "ticketIntent":false,
-                      "ticketConfidence":0.0,
-                      "ticketReason":"..."
-                    }
-                    用户输入：%s
-                    """.formatted(prompt);
-
-            String content = tinyIntentChatClient.prompt()
-                    .user(request)
-                    .call()
-                    .content();
-
-            JSONObject jsonObject = JSON.parseObject(extractJson(content));
-            String intentText = jsonObject.getString("intent");
-            Double confidence = jsonObject.getDouble("confidence");
-            String reason = jsonObject.getString("reason");
-
-            AiIntentType intent = parseIntent(intentText, ruleResult.getIntent());
-            AiChannelIntent modelChannelIntent = parseChannelIntent(jsonObject.getString("channelIntent"), AiChannelIntent.NONE);
-            Double modelChannelConfidence = jsonObject.getDouble("channelConfidence");
-            String modelChannelReason = jsonObject.getString("channelReason");
-
-            Boolean modelOrderIntent = jsonObject.getBoolean("orderIntent");
-            Double modelOrderConfidence = jsonObject.getDouble("orderConfidence");
-            String modelOrderReason = jsonObject.getString("orderReason");
-            Boolean modelTicketIntent = jsonObject.getBoolean("ticketIntent");
-            Double modelTicketConfidence = jsonObject.getDouble("ticketConfidence");
-            String modelTicketReason = jsonObject.getString("ticketReason");
-
-            AiIntentResult result = baseResult(intent, confidence == null ? 0.6D : confidence, reason);
-            if (ruleResult.getChannelIntent() != null && ruleResult.getChannelIntent() != AiChannelIntent.NONE) {
-                result.setChannelIntent(ruleResult.getChannelIntent());
-                result.setChannelConfidence(ruleResult.getChannelConfidence());
-                result.setChannelReason(ruleResult.getChannelReason());
-            } else {
-                result.setChannelIntent(modelChannelIntent);
-                result.setChannelConfidence(modelChannelConfidence == null ? 0.55D : modelChannelConfidence);
-                result.setChannelReason(modelChannelReason);
+            // 第一层：小模型快速路由（当前以同一模型模拟）。
+            AiIntentResult primaryResult = applyCommandSafetyGate(classifyByModel(prompt, ruleResult, false), ruleResult, prompt);
+            RouteDecision primaryDecision = buildRouteDecision(primaryResult);
+            if (!shouldEscalate(primaryDecision)) {
+                return primaryResult;
             }
 
-            if (Boolean.TRUE.equals(ruleResult.getOrderIntent())) {
-                result.setOrderIntent(true);
-                result.setOrderConfidence(ruleResult.getOrderConfidence());
-                result.setOrderReason(ruleResult.getOrderReason());
-            } else {
-                result.setOrderIntent(Boolean.TRUE.equals(modelOrderIntent));
-                result.setOrderConfidence(modelOrderConfidence == null ? 0.50D : modelOrderConfidence);
-                result.setOrderReason(modelOrderReason);
-            }
+            // 第二层：大模型仲裁（当前仍使用同一模型，后续可替换为更强模型）。
+            AiIntentResult secondaryResult = applyCommandSafetyGate(classifyByModel(prompt, ruleResult, true), ruleResult, prompt);
+            RouteDecision secondaryDecision = buildRouteDecision(secondaryResult);
 
-            boolean finalOrderIntent = Boolean.TRUE.equals(result.getOrderIntent());
-            if (finalOrderIntent) {
-                result.setTicketIntent(false);
-                result.setTicketConfidence(0.0D);
-                result.setTicketReason("命中下单意图，下单优先");
-            } else if (Boolean.TRUE.equals(ruleResult.getTicketIntent())) {
-                result.setTicketIntent(true);
-                result.setTicketConfidence(ruleResult.getTicketConfidence());
-                result.setTicketReason(ruleResult.getTicketReason());
-            } else {
-                result.setTicketIntent(Boolean.TRUE.equals(modelTicketIntent));
-                result.setTicketConfidence(modelTicketConfidence == null ? 0.50D : modelTicketConfidence);
-                result.setTicketReason(modelTicketReason);
-            }
-            return result;
+            return chooseAfterEscalation(primaryResult, primaryDecision, secondaryResult, secondaryDecision);
         } catch (Exception e) {
             // 小模型不可用时不影响功能，回退到规则判定。
             log.warn("intent classify by tiny model failed, fallback to rule", e);
@@ -131,10 +77,144 @@ public class IntentRouterService {
         }
     }
 
+    private AiIntentResult classifyByModel(String prompt, AiIntentResult ruleResult, boolean useDeepReasoningPrompt) {
+        String content = tinyIntentChatClient.prompt()
+                .user(buildModelRequest(prompt, useDeepReasoningPrompt))
+                .call()
+                .content();
+        JSONObject jsonObject = JSON.parseObject(extractJson(content));
+        return mergeRuleAndModel(jsonObject, ruleResult);
+    }
+
+    private String buildModelRequest(String prompt, boolean deepReasoning) {
+        String role = deepReasoning ? "你是意图仲裁器（大模型阶段）。" : "你是意图路由器（小模型阶段）。";
+        String strategy = deepReasoning
+                ? "请先逐步分析：是否为执行动作、是否涉及查票/运维/下单，再给结论。"
+                : "请快速给出结论，优先保证稳定路由。";
+        return """
+                %s
+                %s
+                请将用户输入分类并只返回 JSON。
+                1. intent: FACT/CONTINUE/COMMAND
+                2. channelIntent: RAG/OPS/NONE
+                3. orderIntent: true/false（是否明确要下单）
+                4. ticketIntent: true/false（是否查询票务信息但不下单）
+                说明：
+                1. FACT: 事实咨询、知识问答、文档查询
+                2. CONTINUE: 连续上下文追问（例如：刚才那个、继续上一个）
+                3. COMMAND: 指令执行（例如：清空会话、查看摘要、清空摘要）
+                3.1 只有“明确要执行动作”的输入才能判为 COMMAND。
+                    如果用户是在询问命令用法/影响/规则（例如“怎么清空会话”“清空会话有什么影响”），必须判为 FACT。
+                4. channelIntent=RAG: 项目规则、文档、知识库查询
+                5. channelIntent=OPS: 日志、监控、链路排障
+                6. orderIntent=true 的语句示例：帮我下单/确认购买/支付订单
+                7. ticketIntent=true 的语句示例：查票/看票价/还有余票吗/演出场次
+                8. 如果存在歧义，宁可判 FACT，不要误判 COMMAND。
+                只返回JSON，格式：
+                {
+                  "intent":"FACT|CONTINUE|COMMAND",
+                  "confidence":0.0,
+                  "reason":"...",
+                  "channelIntent":"RAG|OPS|NONE",
+                  "channelConfidence":0.0,
+                  "channelReason":"...",
+                  "orderIntent":true,
+                  "orderConfidence":0.0,
+                  "orderReason":"...",
+                  "ticketIntent":false,
+                  "ticketConfidence":0.0,
+                  "ticketReason":"..."
+                }
+                用户输入：%s
+                """.formatted(role, strategy, prompt);
+    }
+
+    private AiIntentResult mergeRuleAndModel(JSONObject jsonObject, AiIntentResult ruleResult) {
+        String intentText = jsonObject.getString("intent");
+        Double confidence = jsonObject.getDouble("confidence");
+        String reason = jsonObject.getString("reason");
+
+        AiIntentType intent = parseIntent(intentText, ruleResult.getIntent());
+        AiChannelIntent modelChannelIntent = parseChannelIntent(jsonObject.getString("channelIntent"), AiChannelIntent.NONE);
+        Double modelChannelConfidence = jsonObject.getDouble("channelConfidence");
+        String modelChannelReason = jsonObject.getString("channelReason");
+
+        Boolean modelOrderIntent = jsonObject.getBoolean("orderIntent");
+        Double modelOrderConfidence = jsonObject.getDouble("orderConfidence");
+        String modelOrderReason = jsonObject.getString("orderReason");
+        Boolean modelTicketIntent = jsonObject.getBoolean("ticketIntent");
+        Double modelTicketConfidence = jsonObject.getDouble("ticketConfidence");
+        String modelTicketReason = jsonObject.getString("ticketReason");
+
+        AiIntentResult result = baseResult(intent, confidence == null ? 0.6D : confidence, reason);
+        if (ruleResult.getChannelIntent() != null && ruleResult.getChannelIntent() != AiChannelIntent.NONE) {
+            result.setChannelIntent(ruleResult.getChannelIntent());
+            result.setChannelConfidence(ruleResult.getChannelConfidence());
+            result.setChannelReason(ruleResult.getChannelReason());
+        } else {
+            result.setChannelIntent(modelChannelIntent);
+            result.setChannelConfidence(modelChannelConfidence == null ? 0.55D : modelChannelConfidence);
+            result.setChannelReason(modelChannelReason);
+        }
+
+        if (Boolean.TRUE.equals(ruleResult.getOrderIntent())) {
+            result.setOrderIntent(true);
+            result.setOrderConfidence(ruleResult.getOrderConfidence());
+            result.setOrderReason(ruleResult.getOrderReason());
+        } else {
+            result.setOrderIntent(Boolean.TRUE.equals(modelOrderIntent));
+            result.setOrderConfidence(modelOrderConfidence == null ? 0.50D : modelOrderConfidence);
+            result.setOrderReason(modelOrderReason);
+        }
+
+        boolean finalOrderIntent = Boolean.TRUE.equals(result.getOrderIntent());
+        if (finalOrderIntent) {
+            result.setTicketIntent(false);
+            result.setTicketConfidence(0.0D);
+            result.setTicketReason("命中下单意图，下单优先");
+        } else if (Boolean.TRUE.equals(ruleResult.getTicketIntent())) {
+            result.setTicketIntent(true);
+            result.setTicketConfidence(ruleResult.getTicketConfidence());
+            result.setTicketReason(ruleResult.getTicketReason());
+        } else {
+            result.setTicketIntent(Boolean.TRUE.equals(modelTicketIntent));
+            result.setTicketConfidence(modelTicketConfidence == null ? 0.50D : modelTicketConfidence);
+            result.setTicketReason(modelTicketReason);
+        }
+        return result;
+    }
+
     private AiIntentResult ruleRoute(String prompt) {
         String text = prompt == null ? "" : prompt.toLowerCase(Locale.ROOT);
-        if (containsAny(text, "清空", "删除记录", "重置对话", "清除历史", "clear history", "reset",
-                "查看摘要", "看摘要", "清空摘要", "重置摘要", "clear summary", "reset summary", "view summary", "show summary")) {
+        String trimmed = text.trim();
+        if ("1".equals(trimmed)) {
+            AiIntentResult result = baseResult(AiIntentType.FACT, 0.99D, "用户确认选择查票链路");
+            result.setChannelIntent(AiChannelIntent.RAG);
+            result.setChannelConfidence(0.99D);
+            result.setChannelReason("用户确认选择");
+            result.setTicketIntent(true);
+            result.setTicketConfidence(0.99D);
+            result.setTicketReason("用户确认选择");
+            return result;
+        }
+        if ("2".equals(trimmed)) {
+            AiIntentResult result = baseResult(AiIntentType.FACT, 0.99D, "用户确认选择运维链路");
+            result.setChannelIntent(AiChannelIntent.OPS);
+            result.setChannelConfidence(0.99D);
+            result.setChannelReason("用户确认选择");
+            return result;
+        }
+        if ("3".equals(trimmed)) {
+            AiIntentResult result = baseResult(AiIntentType.FACT, 0.99D, "用户确认选择下单链路");
+            result.setOrderIntent(true);
+            result.setOrderConfidence(0.99D);
+            result.setOrderReason("用户确认选择");
+            return result;
+        }
+        if ("4".equals(trimmed)) {
+            return baseResult(AiIntentType.FACT, 0.99D, "用户确认选择普通咨询链路");
+        }
+        if (isStrongCommandByRule(text)) {
             AiIntentResult commandResult = baseResult(AiIntentType.COMMAND, 0.99D, "命中指令关键词");
             commandResult.setChannelIntent(AiChannelIntent.NONE);
             commandResult.setChannelConfidence(0.0D);
@@ -184,7 +264,90 @@ public class IntentRouterService {
         result.setTicketIntent(false);
         result.setTicketConfidence(0.0D);
         result.setTicketReason("默认无查票意图");
+        result.setRequireUserConfirm(false);
+        result.setConfirmMessage(null);
         return result;
+    }
+
+    private boolean shouldEscalate(RouteDecision primaryDecision) {
+        // GENERAL 走默认咨询链路，低置信也可容忍，不强制升级。
+        if (primaryDecision.action == RouteAction.GENERAL) {
+            return false;
+        }
+        return primaryDecision.topScore < PRIMARY_ROUTE_CONFIDENCE_GATE
+                || primaryDecision.margin < ROUTE_MARGIN_GATE;
+    }
+
+    private AiIntentResult chooseAfterEscalation(AiIntentResult primaryResult,
+                                                 RouteDecision primaryDecision,
+                                                 AiIntentResult secondaryResult,
+                                                 RouteDecision secondaryDecision) {
+        if (primaryDecision.action == secondaryDecision.action) {
+            return secondaryDecision.topScore >= primaryDecision.topScore ? secondaryResult : primaryResult;
+        }
+
+        if (secondaryDecision.topScore >= SECONDARY_ROUTE_CONFIDENCE_GATE
+                && secondaryDecision.margin >= ROUTE_MARGIN_GATE) {
+            return secondaryResult;
+        }
+        if (primaryDecision.topScore >= PRIMARY_ROUTE_CONFIDENCE_GATE
+                && primaryDecision.margin >= ROUTE_MARGIN_GATE) {
+            return primaryResult;
+        }
+        return buildNeedUserConfirmResult(primaryDecision, secondaryDecision);
+    }
+
+    private AiIntentResult buildNeedUserConfirmResult(RouteDecision primaryDecision, RouteDecision secondaryDecision) {
+        AiIntentResult result = baseResult(AiIntentType.FACT, 0.0D,
+                "模型分层路由后仍不确定，需用户确认目标链路");
+        result.setRequireUserConfirm(true);
+        result.setConfirmMessage("""
+                我对你的意图还不够确定（一级判断：%s，二级判断：%s）。
+                为避免误路由，请回复你的目标：
+                1) 查票（RAG）
+                2) 运维排障（MCP）
+                3) 下单执行（Plan-Execute）
+                4) 普通咨询
+                """.formatted(toLabel(primaryDecision.action), toLabel(secondaryDecision.action)).trim());
+        return result;
+    }
+
+    private String toLabel(RouteAction action) {
+        return switch (action) {
+            case ORDER -> "下单";
+            case OPS -> "运维";
+            case RAG -> "查票";
+            case GENERAL -> "普通咨询";
+        };
+    }
+
+    private RouteDecision buildRouteDecision(AiIntentResult result) {
+        double orderScore = Boolean.TRUE.equals(result.getOrderIntent()) ? safeDouble(result.getOrderConfidence()) : 0.0D;
+        double opsScore = result.getChannelIntent() == AiChannelIntent.OPS ? safeDouble(result.getChannelConfidence()) : 0.0D;
+        double ragScore = Math.max(
+                result.getChannelIntent() == AiChannelIntent.RAG ? safeDouble(result.getChannelConfidence()) : 0.0D,
+                Boolean.TRUE.equals(result.getTicketIntent()) ? safeDouble(result.getTicketConfidence()) : 0.0D
+        );
+        double generalScore = (result.getIntent() == AiIntentType.FACT || result.getIntent() == AiIntentType.CONTINUE)
+                ? safeDouble(result.getConfidence())
+                : 0.0D;
+
+        RouteAction topAction = RouteAction.GENERAL;
+        double topScore = -1.0D;
+        double secondScore = 0.0D;
+
+        RouteAction[] actions = {RouteAction.ORDER, RouteAction.OPS, RouteAction.RAG, RouteAction.GENERAL};
+        double[] scores = {orderScore, opsScore, ragScore, generalScore};
+        for (int i = 0; i < actions.length; i++) {
+            if (scores[i] > topScore) {
+                secondScore = topScore < 0 ? 0.0D : topScore;
+                topScore = scores[i];
+                topAction = actions[i];
+            } else if (scores[i] > secondScore) {
+                secondScore = scores[i];
+            }
+        }
+        return new RouteDecision(topAction, topScore, topScore - secondScore);
     }
 
     private AiChannelIntent detectChannelByRule(String text, boolean ticketIntent) {
@@ -211,6 +374,56 @@ public class IntentRouterService {
         return containsAny(text,
                 "查票", "看票", "余票", "还有票吗", "票价", "多少钱", "演出时间", "场次", "开票",
                 "票档", "选座", "座位图", "门票信息", "演唱会信息");
+    }
+
+    private AiIntentResult applyCommandSafetyGate(AiIntentResult modelResult,
+                                                  AiIntentResult ruleResult,
+                                                  String prompt) {
+        if (modelResult.getIntent() != AiIntentType.COMMAND) {
+            return modelResult;
+        }
+        String text = prompt == null ? "" : prompt.toLowerCase(Locale.ROOT);
+        boolean strongCommand = isStrongCommandByRule(text);
+        boolean modelConfidenceEnough = safeDouble(modelResult.getConfidence()) >= COMMAND_MODEL_CONFIDENCE_GATE;
+
+        if (looksLikeCommandKnowledgeQuery(text) || containsAny(text, COMMAND_NEGATION_KEYS)) {
+            ruleResult.setReason("命令语义安全门禁触发：疑似命令问询或否定语境，回退规则判定");
+            return ruleResult;
+        }
+        if (!strongCommand && !modelConfidenceEnough) {
+            ruleResult.setReason("命令语义安全门禁触发：命令证据不足，回退规则判定");
+            return ruleResult;
+        }
+        return modelResult;
+    }
+
+    private boolean isStrongCommandByRule(String text) {
+        if (text == null || text.isBlank()) {
+            return false;
+        }
+        if (containsAny(text, COMMAND_NEGATION_KEYS) || looksLikeCommandKnowledgeQuery(text)) {
+            return false;
+        }
+        return containsAny(text, VIEW_SUMMARY_COMMAND_KEYS)
+                || containsAny(text, RESET_SUMMARY_COMMAND_KEYS)
+                || containsAny(text, CLEAR_SESSION_COMMAND_KEYS);
+    }
+
+    private boolean looksLikeCommandKnowledgeQuery(String text) {
+        if (text == null || text.isBlank()) {
+            return false;
+        }
+        boolean mentionCommand = containsAny(text, VIEW_SUMMARY_COMMAND_KEYS)
+                || containsAny(text, RESET_SUMMARY_COMMAND_KEYS)
+                || containsAny(text, CLEAR_SESSION_COMMAND_KEYS)
+                || containsAny(text, "命令", "指令", "command");
+        if (!mentionCommand) {
+            return false;
+        }
+        if (containsAny(text, COMMAND_KNOWLEDGE_QUERY_KEYS)) {
+            return true;
+        }
+        return text.contains("如果") && containsAny(text, "清空", "重置", "删除", "查看", "clear", "reset", "view");
     }
 
     private AiChannelIntent parseChannelIntent(String text, AiChannelIntent fallback) {
@@ -254,5 +467,28 @@ public class IntentRouterService {
             return content.substring(start, end + 1);
         }
         return content;
+    }
+
+    private double safeDouble(Double value) {
+        return value == null ? 0.0D : value;
+    }
+
+    private enum RouteAction {
+        ORDER,
+        OPS,
+        RAG,
+        GENERAL
+    }
+
+    private static class RouteDecision {
+        private final RouteAction action;
+        private final double topScore;
+        private final double margin;
+
+        private RouteDecision(RouteAction action, double topScore, double margin) {
+            this.action = action;
+            this.topScore = topScore;
+            this.margin = margin;
+        }
     }
 }

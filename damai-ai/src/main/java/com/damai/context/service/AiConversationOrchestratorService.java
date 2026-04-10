@@ -80,8 +80,17 @@ public class AiConversationOrchestratorService {
         }
 
         AiChannelIntent channelIntent = intentResult.getChannelIntent() == null ? AiChannelIntent.NONE : intentResult.getChannelIntent();
-        log.info("intent route chatType={} chatId={} intent={} channel={} orderIntent={} ticketIntent={} reason={} channelReason={}",
-                chatType, safeChatId, intent, channelIntent, intentResult.getOrderIntent(), intentResult.getTicketIntent(), intentResult.getReason(), intentResult.getChannelReason());
+        log.info("intent route chatType={} chatId={} intent={} channel={} orderIntent={} ticketIntent={} needConfirm={} reason={} channelReason={}",
+                chatType, safeChatId, intent, channelIntent, intentResult.getOrderIntent(), intentResult.getTicketIntent(),
+                intentResult.getRequireUserConfirm(), intentResult.getReason(), intentResult.getChannelReason());
+
+        if (Boolean.TRUE.equals(intentResult.getRequireUserConfirm())) {
+            String confirmMessage = intentResult.getConfirmMessage() == null || intentResult.getConfirmMessage().isBlank()
+                    ? "我暂时无法确定你的目标链路，请明确回复：查票、运维排障、下单或普通咨询。"
+                    : intentResult.getConfirmMessage();
+            conversationStateService.onChatCompleted(chatType, safeChatId, userId, prompt, confirmMessage, intent);
+            return Flux.just(confirmMessage);
+        }
 
         // Program 专用入口：按意图自动路由到 RAG / MCP / 下单 / 普通咨询链路。
         if (isProgramScope(chatType)) {

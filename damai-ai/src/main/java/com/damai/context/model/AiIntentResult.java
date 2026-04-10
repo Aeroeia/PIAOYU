@@ -20,4 +20,6 @@ public class AiIntentResult {
     private Boolean ticketIntent;
     private Double ticketConfidence;
     private String ticketReason;
+    private Boolean requireUserConfirm;
+    private String confirmMessage;
 }
